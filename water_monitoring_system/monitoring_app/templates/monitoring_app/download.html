@@ -1,0 +1,261 @@
+{% extends 'monitoring_app/base.html' %}
+
+{% block content %}
+<div class="sliding-header">
+    <h1>Download Data for {{ user.username }}</h1>
+    <p>Export historical water quality data</p>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Download Options</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{% url 'download_data' user.id %}" id="download-form">
+                    {% csrf_token %}
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="start_date" class="form-label">Start Date</label>
+                            <input type="date" class="form-control" id="start_date" name="start_date" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="end_date" class="form-label">End Date</label>
+                            <input type="date" class="form-control" id="end_date" name="end_date" required>
+                            <small class="text-muted">Maximum date range: 31 days</small>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Select Parameters</label>
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input parameter-checkbox" type="checkbox" id="ph" name="ph" value="1">
+                                    <label class="form-check-label" for="ph">pH</label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input parameter-checkbox" type="checkbox" id="flow" name="flow" value="1">
+                                    <label class="form-check-label" for="flow">Flow</label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input parameter-checkbox" type="checkbox" id="total_flow" name="total_flow" value="1">
+                                    <label class="form-check-label" for="total_flow">Total Flow</label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input parameter-checkbox" type="checkbox" id="cod" name="cod" value="1">
+                                    <label class="form-check-label" for="cod">COD</label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input parameter-checkbox" type="checkbox" id="bod" name="bod" value="1">
+                                    <label class="form-check-label" for="bod">BOD</label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input parameter-checkbox" type="checkbox" id="tss" name="tss" value="1">
+                                    <label class="form-check-label" for="tss">TSS</label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input parameter-checkbox" type="checkbox" id="daily_flow" name="daily_flow" value="1">
+                                    <label class="form-check-label" for="daily_flow">Daily Flow</label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input parameter-checkbox" type="checkbox" id="select_all" name="select_all">
+                                    <label class="form-check-label" for="select_all"><strong>Select All</strong></label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">File Format</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="format" id="excel" value="excel" checked>
+                            <label class="form-check-label" for="excel">Excel (CSV)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="format" id="pdf" value="pdf">
+                            <label class="form-check-label" for="pdf">PDF</label>
+                        </div>
+                    </div>
+                    
+                    <button type="button" id="view-data-btn" class="btn btn-primary">View Data</button>
+                    <button type="submit" id="download-btn" class="btn btn-success" disabled>Download</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4" id="preview-container" style="display: none;">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Data Preview</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover" id="preview-table">
+                        <thead id="preview-head">
+                            <tr>
+                                <th>Date</th>
+                                <th>Time</th>
+                                <!-- Dynamic headers will be added here -->
+                            </tr>
+                        </thead>
+                        <tbody id="preview-body">
+                            <!-- Dynamic data will be added here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="text-center mb-4">
+    <a href="{% url 'dashboard' %}" class="btn btn-secondary">Back to Dashboard</a>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Date range validation
+        function validateDateRange() {
+            const startDate = new Date($('#start_date').val());
+            const endDate = new Date($('#end_date').val());
+            
+            if (startDate && endDate) {
+                // Calculate the difference in days
+                const diffTime = Math.abs(endDate - startDate);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                
+                if (diffDays > 31) {
+                    alert("Date range cannot exceed 31 days.");
+                    $('#end_date').val('');
+                    return false;
+                }
+                if (endDate < startDate) {
+                    alert("End date cannot be before start date.");
+                    $('#end_date').val('');
+                    return false;
+                }
+            }
+            return true;
+        }
+        
+        $('#end_date').change(validateDateRange);
+        
+        // Select all checkbox
+        $('#select_all').change(function() {
+            $('.parameter-checkbox').prop('checked', $(this).prop('checked'));
+            updateDownloadButton();
+        });
+        
+        $('.parameter-checkbox').change(function() {
+            updateDownloadButton();
+            // Uncheck "select all" if any checkbox is unchecked
+            if (!$(this).prop('checked')) {
+                $('#select_all').prop('checked', false);
+            }
+            // Check "select all" if all checkboxes are checked
+            else if ($('.parameter-checkbox:checked').length === $('.parameter-checkbox').length - 1) {
+                $('#select_all').prop('checked', true);
+            }
+        });
+        
+        function updateDownloadButton() {
+            const hasParameters = $('.parameter-checkbox:checked').length > 0;
+            const hasDateRange = $('#start_date').val() && $('#end_date').val();
+            
+            $('#download-btn').prop('disabled', !(hasParameters && hasDateRange));
+        }
+        
+        // Update button state when form changes
+        $('#download-form input').change(updateDownloadButton);
+        
+        // View data button
+        $('#view-data-btn').click(function() {
+            if (!$('#start_date').val() || !$('#end_date').val()) {
+                alert("Please select a date range.");
+                return;
+            }
+            
+            if (!validateDateRange()) {
+                return;
+            }
+            
+            const userId = {{ user.id }};
+            const startDate = $('#start_date').val();
+            const endDate = $('#end_date').val();
+            
+            // Get selected parameters
+            const selectedParams = [];
+            $('.parameter-checkbox:checked').each(function() {
+                const paramName = $(this).attr('id');
+                if (paramName !== 'select_all') {
+                    selectedParams.push(paramName);
+                }
+            });
+            
+            if (selectedParams.length === 0) {
+                alert("Please select at least one parameter.");
+                return;
+            }
+            
+            // Fetch data for preview
+            $.ajax({
+                url: `/api/water-quality/date_range/?user_id=${userId}&start_date=${startDate}&end_date=${endDate}`,
+                method: 'GET',
+                success: function(data) {
+                    if (data.length === 0) {
+                        alert("No data found for the selected date range.");
+                        return;
+                    }
+                    
+                    // Build table headers
+                    let headers = '<tr><th>Date</th><th>Time</th>';
+                    selectedParams.forEach(param => {
+                        headers += `<th>${param.toUpperCase().replace('_', ' ')}</th>`;
+                    });
+                    headers += '</tr>';
+                    $('#preview-head').html(headers);
+                    
+                    // Build table rows
+                    let rows = '';
+                    data.forEach(item => {
+                        const date = new Date(item.timestamp);
+                        rows += `<tr><td>${date.toISOString().split('T')[0]}</td><td>${date.toTimeString().split(' ')[0]}</td>`;
+                        selectedParams.forEach(param => {
+                            rows += `<td>${item[param]}</td>`;
+                        });
+                        rows += '</tr>';
+                    });
+                    $('#preview-body').html(rows);
+                    
+                    // Show preview table
+                    $('#preview-container').show();
+                },
+                error: function() {
+                    alert("Error fetching data. Please try again.");
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}                  
