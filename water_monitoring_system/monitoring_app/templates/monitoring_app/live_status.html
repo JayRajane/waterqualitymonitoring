@@ -1,76 +1,94 @@
-{% extends 'monitoring_app/base.html' %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Status</title>
 
-{% block content %}
-<div class="sliding-header">
-    <h1>Welcome, {{ user.username }}!</h1>
-    <p>Select a user to view their water quality monitoring data.</p>
-</div>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 20px;
+        }
 
-<div class="row mb-4">
-    <div class="col-md-6 offset-md-3">
-        <div class="card">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">Select User</h5>
-            </div>
-            <div class="card-body">
-                <form id="user-select-form">
-                    <div class="mb-3">
-                        <label for="user-select" class="form-label">User</label>
-                        <select class="form-select" id="user-select">
-                            <option value="">-- Select User --</option>
-                            {% for user in users %}
-                            <option value="{{ user.id }}">{{ user.username }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <button type="button" id="go-to-dashboard" class="btn btn-primary" disabled>Go to Dashboard</button>
-                </form>
-            </div>
+        .data-card {
+            text-align: center;
+            padding: 20px;
+            border-radius: 10px;
+            background-color: #ffffff;
+            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .data-card h3 {
+            color: #970cd8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2 class="text-center mb-4">Live Status</h2>
+        <div class="row text-center">
+            <div class="col-md-4 mb-3"><div class="data-card"><h3>pH</h3><p id="phValue">-</p></div></div>
+            <div class="col-md-4 mb-3"><div class="data-card"><h3>Flow</h3><p id="flowValue">-</p></div></div>
+            <div class="col-md-4 mb-3"><div class="data-card"><h3>Total Flow</h3><p id="totalFlowValue">-</p></div></div>
+            <div class="col-md-4 mb-3"><div class="data-card"><h3>COD</h3><p id="codValue">-</p></div></div>
+            <div class="col-md-4 mb-3"><div class="data-card"><h3>BOD</h3><p id="bodValue">-</p></div></div>
+            <div class="col-md-4 mb-3"><div class="data-card"><h3>TSS</h3><p id="tssValue">-</p></div></div>
         </div>
     </div>
-</div>
 
-<div class="row" id="dashboard-options" style="display: none;">
-    <div class="col-md-6">
-        <div class="action-button">
-            <h3>Live Status</h3>
-            <p>View real-time water quality data</p>
-            <a href="#" id="live-status-link" class="btn btn-primary">View Live Status</a>
-        </div>
-    </div>
-    <div class="col-md-6">
-        <div class="action-button">
-            <h3>Download Data</h3>
-            <p>Download historical water quality data</p>
-            <a href="#" id="download-link" class="btn btn-success">Download Data</a>
-        </div>
-    </div>
-</div>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-    $(document).ready(function() {
-        $('#user-select').change(function() {
-            const userId = $(this).val();
-            if (userId) {
-                $('#go-to-dashboard').prop('disabled', false);
-            } else {
-                $('#go-to-dashboard').prop('disabled', true);
+    <script>
+        const userId = 1; // Replace with dynamic user ID if needed
+        async function fetchData() {
+            try {
+                let response = await fetch("http://127.0.0.1:8000/api/water-quality/1/");
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                let data = await response.json();
+                document.getElementById("phValue").innerText = data.ph || "-";
+                document.getElementById("flowValue").innerText = `${data.flow} L/min` || "-";
+                document.getElementById("totalFlowValue").innerText = `${data.total_flow} L` || "-";
+                document.getElementById("codValue").innerText = `${data.cod} mg/L` || "-";
+                document.getElementById("bodValue").innerText = `${data.bod} mg/L` || "-";
+                document.getElementById("tssValue").innerText = `${data.tss} mg/L` || "-";
+            } catch (error) {
+                console.error("Error fetching data:", error.message);
             }
-        });
+        }
 
-        $('#go-to-dashboard').click(function() {
-            const userId = $('#user-select').val();
-            if (userId) {
-                $('#dashboard-options').show();
-                $('#live-status-link').attr('href', `/live-status/${userId}/`);
-                $('#download-link').attr('href', `/download/${userId}/`);
-                $('html, body').animate({
-                    scrollTop: $("#dashboard-options").offset().top
-                }, 1000);
-            }
-        });
-    });
-</script>
-{% endblock %}
+        function fetchLatestData() {
+            $.ajax({
+                url: `/api/water-quality/?user_id=${userId}`,
+                method: 'GET',
+                success: function(data) {
+                    if (data.length === 0) {
+                        alert("No data found for the selected date range.");
+                        return;
+                    }
+                    let latestData = data[data.length - 1];
+                    document.getElementById("phValue").innerText = latestData.ph || "-";
+                    document.getElementById("flowValue").innerText = `${latestData.flow} L/min` || "-";
+                    document.getElementById("totalFlowValue").innerText = `${latestData.total_flow} L` || "-";
+                    document.getElementById("codValue").innerText = `${latestData.cod} mg/L` || "-";
+                    document.getElementById("bodValue").innerText = `${latestData.bod} mg/L` || "-";
+                    document.getElementById("tssValue").innerText = `${latestData.tss} mg/L` || "-";
+                },
+                error: function(error) {
+                    console.error("Error fetching latest data:", error);
+                }
+            });
+        }
+
+        fetchData();
+        fetchLatestData();
+        setInterval(fetchLatestData, 60000);
+    </script>
+</body>
+</html>
