@@ -227,27 +227,33 @@
                         alert("No data found for the selected date range.");
                         return;
                     }
-                    
+                
+                    // Define the desired column order
+                    const desiredOrder = ['ph', 'flow', 'daily_flow', 'total_flow', 'cod', 'bod', 'tss'];
+                
+                    // Filter selectedParams to match the desired order
+                    const orderedParams = desiredOrder.filter(param => selectedParams.includes(param));
+                
                     // Build table headers
                     let headers = '<tr><th>Date</th><th>Time</th>';
-                    selectedParams.forEach(param => {
+                    orderedParams.forEach(param => {
                         headers += `<th>${param.toUpperCase().replace('_', ' ')}</th>`;
                     });
                     headers += '</tr>';
                     $('#preview-head').html(headers);
-                    
+                
                     // Build table rows
                     let rows = '';
                     data.forEach(item => {
                         const date = new Date(item.timestamp);
                         rows += `<tr><td>${date.toISOString().split('T')[0]}</td><td>${date.toTimeString().split(' ')[0]}</td>`;
-                        selectedParams.forEach(param => {
+                        orderedParams.forEach(param => {
                             rows += `<td>${item[param]}</td>`;
                         });
                         rows += '</tr>';
                     });
                     $('#preview-body').html(rows);
-                    
+                
                     // Show preview table
                     $('#preview-container').show();
                 },
