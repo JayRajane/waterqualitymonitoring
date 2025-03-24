@@ -1,0 +1,114 @@
+{% extends 'monitoring_app/base.html' %}
+
+{% block content %}
+<div class="sliding-header">
+    <h1>Data Entry</h1>
+    <p>Add new water quality measurements</p>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Enter New Data</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" id="data-entry-form">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="user-select" class="form-label">Select User</label>
+                        <select class="form-select" id="user-select" name="user_id" required>
+                            <option value="">-- Select User --</option>
+                            {% for user in users %}
+                            <option value="{{ user.id }}">{{ user.username }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="ph" class="form-label">pH Value</label>
+                            <input type="number" class="form-control" id="ph" name="ph" step="0.01" min="0" max="14">
+                            <small class="text-muted">Optional</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="flow" class="form-label">Flow (L/min)</label>
+                            <input type="number" class="form-control" id="flow" name="flow" step="0.01" min="0">
+                            <small class="text-muted">Optional</small>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="cod" class="form-label">COD (mg/L)</label>
+                            <input type="number" class="form-control" id="cod" name="cod" step="0.01" min="0">
+                            <small class="text-muted">Optional</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="bod" class="form-label">BOD (mg/L)</label>
+                            <input type="number" class="form-control" id="bod" name="bod" step="0.01" min="0">
+                            <small class="text-muted">Optional</small>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="tss" class="form-label">TSS (mg/L)</label>
+                            <input type="number" class="form-control" id="tss" name="tss" step="0.01" min="0">
+                            <small class="text-muted">Optional</small>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="submit" class="btn btn-primary">Submit Data</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="text-center mb-4">
+    <a href="{% url 'dashboard' %}" class="btn btn-secondary">Back to Dashboard</a>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        $('#data-entry-form').submit(function(e) {
+            e.preventDefault();
+            
+            // Validate that at least one data field has been filled
+            const hasData = $('#ph').val() || $('#flow').val() || $('#cod').val() || $('#bod').val() || $('#tss').val();
+            
+            if (!hasData) {
+                alert("Please enter at least one measurement value.");
+                return;
+            }
+            
+            // Prepare form data
+            const formData = $(this).serialize();
+            
+            // Submit data via AJAX
+            $.ajax({
+                url: "{% url 'submit_data' %}",
+                method: "POST",
+                data: formData,
+                success: function(response) {
+                    if (response.success) {
+                        alert("Data submitted successfully!");
+                        // Reset form
+                        $('#data-entry-form')[0].reset();
+                    } else {
+                        alert("Error: " + response.error);
+                    }
+                },
+                error: function(xhr) {
+                    alert("Error submitting data. Please try again.");
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

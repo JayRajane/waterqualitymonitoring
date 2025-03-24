@@ -33,6 +33,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'monitoring_app',
+    'corsheaders',
+
 ]
 
 MIDDLEWARE = [
@@ -43,9 +45,26 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'water_monitoring_system.middleware.RequireLoginMiddleware', # Add this line
+    'corsheaders.middleware.CorsMiddleware',
+
+
 ]
 
+# Add to settings.py
+LOGIN_URL = '/accounts/login/'
+LOGIN_REDIRECT_URL = '/'
+LOGOUT_REDIRECT_URL = '/accounts/login/'
+LOGOUT_REDIRECT_URL = 'login'  # Redirect to the login page after logout
+
+# Session timeout (30 minutes = 1800 seconds)
+SESSION_COOKIE_AGE = 1800
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+SESSION_SAVE_EVERY_REQUEST = True
+
 ROOT_URLCONF = 'water_monitoring_system.urls'
+
+CORS_ALLOW_ALL_ORIGINS = True
 
 TEMPLATES = [
     {
@@ -116,5 +135,5 @@ REST_FRAMEWORK = {
 }
 
 # Login/Logout URLs
-LOGIN_REDIRECT_URL = '/'
-LOGOUT_REDIRECT_URL = '/'
+#LOGIN_REDIRECT_URL = '/'
+#LOGOUT_REDIRECT_URL = '/'

@@ -11,7 +11,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.platypus import Table, TableStyle
-
+from django.http import JsonResponse
 from .models import WaterQualityData
 from .serializers import WaterQualityDataSerializer, UserSerializer
 from django.contrib.auth.models import User
@@ -25,11 +25,22 @@ class WaterQualityDataViewSet(viewsets.ModelViewSet):
         serializer.save(user=self.request.user)
     
     def get_queryset(self):
+        queryset = WaterQualityData.objects.all()
+    
         # Filter by user_id if provided
         user_id = self.request.query_params.get('user_id')
         if user_id:
-            return WaterQualityData.objects.filter(user_id=user_id)
-        return WaterQualityData.objects.all()
+            queryset = queryset.filter(user_id=user_id)
+    
+        # Limit results if requested
+        limit = self.request.query_params.get('limit')
+        if limit and limit.isdigit():
+            queryset = queryset.order_by('-timestamp')[:int(limit)]
+        else:
+            queryset = queryset.order_by('-timestamp')
+    
+        return queryset
+
     
     @action(detail=False, methods=['get'])
     def latest(self, request):
@@ -107,6 +118,36 @@ def download_page(request, user_id):
     return render(request, 'monitoring_app/download.html', {'user': user})
 
 @login_required
+def add_data(request):
+    users = User.objects.all()
+    return render(request, 'monitoring_app/add_data.html', {'users': users})
+
+@login_required
+def data_entry(request):
+    users = User.objects.all()
+    return render(request, 'monitoring_app/data_entry.html', {'users': users})
+
+@login_required
+def user_list(request):
+    users = User.objects.all()
+    user_data = [{'id': user.id, 'username': user.username} for user in users]
+    return JsonResponse(user_data, safe=False)
+
+@login_required
+def water_quality_data(request):
+    user_id = request.GET.get('user_id')
+    limit = request.GET.get('limit', 20)
+    
+    queryset = WaterQualityData.objects.all()
+    if user_id:
+        queryset = queryset.filter(user_id=user_id)
+    
+    queryset = queryset.order_by('-timestamp')[:int(limit)]
+    data = list(queryset.values('id', 'user_id', 'timestamp', 'ph', 'flow', 'daily_flow','total_flow', 'cod', 'bod', 'tss',  'date'))
+    
+    return JsonResponse(data, safe=False)
+
+@login_required
 def download_data(request, user_id):
     if request.method == 'POST':
         user = User.objects.get(id=user_id)
@@ -116,7 +157,7 @@ def download_data(request, user_id):
         
         # Get selected fields
         fields = []
-        for field in ['ph', 'flow', 'total_flow', 'cod', 'bod', 'tss', 'daily_flow']:
+        for field in ['ph', 'flow', 'daily_flow','total_flow', 'cod', 'bod', 'tss' ]:
             if request.POST.get(field):
                 fields.append(field)
         
@@ -202,3 +243,56 @@ def download_data(request, user_id):
             return response
     
     return redirect('download_page', user_id=user_id)
+
+@login_required
+def submit_data(request):
+    if request.method == 'POST':
+        user_id = request.POST.get('user_id')
+        
+        try:
+            user = User.objects.get(id=user_id)
+            
+            # Get data from form (use None for empty fields)
+            ph = request.POST.get('ph', '') or None
+            flow = request.POST.get('flow', '') or None
+            cod = request.POST.get('cod', '') or None
+            bod = request.POST.get('bod', '') or None
+            tss = request.POST.get('tss', '') or None
+            
+            # Convert to float for non-None values
+            ph = float(ph) if ph is not None else None
+            flow = float(flow) if flow is not None else None
+            cod = float(cod) if cod is not None else None
+            bod = float(bod) if bod is not None else None
+            tss = float(tss) if tss is not None else None
+            
+            # Calculate total_flow automatically
+            latest_record = WaterQualityData.objects.filter(user=user).order_by('-timestamp').first()
+            if latest_record and flow is not None:
+                total_flow = latest_record.total_flow + flow
+            elif flow is not None:
+                total_flow = flow
+            else:
+                total_flow = 0
+            
+            # Create new record with non-null values
+            new_data = WaterQualityData(
+                user=user,
+                ph=ph if ph is not None else 0,
+                flow=flow if flow is not None else 0,
+                total_flow=total_flow,
+                cod=cod if cod is not None else 0,
+                bod=bod if bod is not None else 0,
+                tss=tss if tss is not None else 0
+            )
+            
+            new_data.save()
+            
+            return JsonResponse({'success': True})
+        except User.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'User not found'})
+        except ValueError as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    
+    return JsonResponse({'success': False, 'error': 'Invalid request method'})
+

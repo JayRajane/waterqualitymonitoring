@@ -31,18 +31,25 @@
 </div>
 
 <div class="row" id="dashboard-options" style="display: none;">
-    <div class="col-md-6">
+    <div class="col-md-4">
         <div class="action-button">
             <h3>Live Status</h3>
             <p>View real-time water quality data</p>
             <a href="#" id="live-status-link" class="btn btn-primary">View Live Status</a>
         </div>
     </div>
-    <div class="col-md-6">
+    <div class="col-md-4">
         <div class="action-button">
             <h3>Download Data</h3>
             <p>Download historical water quality data</p>
             <a href="#" id="download-link" class="btn btn-success">Download Data</a>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="action-button">
+            <h3>Add New Data</h3>
+            <p>Enter new water quality measurements</p>
+            <a href="{% url 'add_data' %}" class="btn btn-info">Add Data</a>
         </div>
     </div>
 </div>
