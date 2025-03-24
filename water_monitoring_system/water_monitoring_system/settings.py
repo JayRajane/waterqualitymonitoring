@@ -57,6 +57,8 @@ LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
 LOGOUT_REDIRECT_URL = 'login'  # Redirect to the login page after logout
 
+# In settings.py
+LOGOUT_GET_ALLOWED = True  
 # Session timeout (30 minutes = 1800 seconds)
 SESSION_COOKIE_AGE = 1800
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False

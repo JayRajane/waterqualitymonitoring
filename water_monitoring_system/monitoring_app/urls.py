@@ -20,6 +20,8 @@ urlpatterns = [
     path('submit-data/', views.submit_data, name='submit_data'),
     path('api/users/', views.user_list, name='user_list'),
     path('api/water-qualitys/', views.water_quality_data, name='water_quality_data'),
+    path('accounts/logout/', views.logout_confirm, name='logout'),      
+
 
 
 

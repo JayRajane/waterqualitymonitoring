@@ -15,6 +15,9 @@ from django.http import JsonResponse
 from .models import WaterQualityData
 from .serializers import WaterQualityDataSerializer, UserSerializer
 from django.contrib.auth.models import User
+from django.contrib.auth import logout
+
+
 
 class WaterQualityDataViewSet(viewsets.ModelViewSet):
     queryset = WaterQualityData.objects.all()
@@ -91,6 +94,19 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+
+def custom_logout(request):
+    logout(request)
+    return redirect('login')
+
+def logout_confirm(request):
+    if request.method == 'POST':
+        if 'confirm' in request.POST:  # If "Yes" was clicked
+            logout(request)
+            return redirect('login')
+        else:  # If "No" was clicked
+            return redirect('dashboard')
+    return render(request, 'monitoring_app/logout_confirm.html')
 # Web views
 @login_required
 def dashboard(request):
