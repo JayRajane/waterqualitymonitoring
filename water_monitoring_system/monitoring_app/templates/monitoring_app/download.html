@@ -26,6 +26,20 @@
                             <small class="text-muted">Maximum date range: 31 days</small>
                         </div>
                     </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="time_interval" class="form-label">Time Interval</label>
+                            <select class="form-select" id="time_interval" name="time_interval">
+                                <option value="0">No interval (all data)</option>
+                                <option value="5">5 minutes</option>
+                                <option value="10">10 minutes</option>
+                                <option value="15">15 minutes</option>
+                                <option value="30">30 minutes</option>
+                                <option value="60">1 hour</option>
+                            </select>
+                        </div>
+                    </div>
                     
                     <div class="mb-3">
                         <label class="form-label">Select Parameters</label>
@@ -190,78 +204,79 @@
         $('#download-form input').change(updateDownloadButton);
         
         // View data button
-        $('#view-data-btn').click(function() {
-            if (!$('#start_date').val() || !$('#end_date').val()) {
-                alert("Please select a date range.");
+// Modify the view-data-btn click handler
+$('#view-data-btn').click(function() {
+    if (!$('#start_date').val() || !$('#end_date').val()) {
+        alert("Please select a date range.");
+        return;
+    }
+    
+    if (!validateDateRange()) {
+        return;
+    }
+    
+    const userId = {{ user.id }};
+    const startDate = $('#start_date').val();
+    const endDate = $('#end_date').val();
+    const timeInterval = $('#time_interval').val();
+    
+    // Get selected parameters
+    const selectedParams = [];
+    $('.parameter-checkbox:checked').each(function() {
+        const paramName = $(this).attr('id');
+        if (paramName !== 'select_all') {
+            selectedParams.push(paramName);
+        }
+    });
+    
+    if (selectedParams.length === 0) {
+        alert("Please select at least one parameter.");
+        return;
+    }
+    
+    // Fetch data for preview
+    $.ajax({
+        url: `/api/water-quality/date_range/?user_id=${userId}&start_date=${startDate}&end_date=${endDate}&time_interval=${timeInterval}`,
+        method: 'GET',
+        success: function(data) {
+            if (data.length === 0) {
+                alert("No data found for the selected date range.");
                 return;
             }
             
-            if (!validateDateRange()) {
-                return;
-            }
+            // Clear previous preview
+            $('#preview-head tr').empty();
+            $('#preview-body').empty();
             
-            const userId = {{ user.id }};
-            const startDate = $('#start_date').val();
-            const endDate = $('#end_date').val();
-            
-            // Get selected parameters
-            const selectedParams = [];
-            $('.parameter-checkbox:checked').each(function() {
-                const paramName = $(this).attr('id');
-                if (paramName !== 'select_all') {
-                    selectedParams.push(paramName);
-                }
+            // Add headers
+            $('#preview-head tr').append('<th>Date</th><th>Time</th>');
+            selectedParams.forEach(param => {
+                $('#preview-head tr').append(`<th>${param.toUpperCase()}</th>`);
             });
             
-            if (selectedParams.length === 0) {
-                alert("Please select at least one parameter.");
-                return;
-            }
-            
-            // Fetch data for preview
-            $.ajax({
-                url: `/api/water-quality/date_range/?user_id=${userId}&start_date=${startDate}&end_date=${endDate}`,
-                method: 'GET',
-                success: function(data) {
-                    if (data.length === 0) {
-                        alert("No data found for the selected date range.");
-                        return;
-                    }
+            // Add data rows
+            data.forEach(item => {
+                const row = $('<tr>');
+                const date = new Date(item.timestamp);
+                row.append(`<td>${date.toISOString().split('T')[0]}</td>`);
+                row.append(`<td>${date.toTimeString().split(' ')[0]}</td>`);
                 
-                    // Define the desired column order
-                    const desiredOrder = ['ph', 'flow', 'daily_flow', 'total_flow', 'cod', 'bod', 'tss'];
+                selectedParams.forEach(param => {
+                    row.append(`<td>${item[param] || ''}</td>`);
+                });
                 
-                    // Filter selectedParams to match the desired order
-                    const orderedParams = desiredOrder.filter(param => selectedParams.includes(param));
-                
-                    // Build table headers
-                    let headers = '<tr><th>Date</th><th>Time</th>';
-                    orderedParams.forEach(param => {
-                        headers += `<th>${param.toUpperCase().replace('_', ' ')}</th>`;
-                    });
-                    headers += '</tr>';
-                    $('#preview-head').html(headers);
-                
-                    // Build table rows
-                    let rows = '';
-                    data.forEach(item => {
-                        const date = new Date(item.timestamp);
-                        rows += `<tr><td>${date.toISOString().split('T')[0]}</td><td>${date.toTimeString().split(' ')[0]}</td>`;
-                        orderedParams.forEach(param => {
-                            rows += `<td>${item[param]}</td>`;
-                        });
-                        rows += '</tr>';
-                    });
-                    $('#preview-body').html(rows);
-                
-                    // Show preview table
-                    $('#preview-container').show();
-                },
-                error: function() {
-                    alert("Error fetching data. Please try again.");
-                }
+                $('#preview-body').append(row);
             });
-        });
+            
+            // Show preview
+            $('#preview-container').show();
+            $('#download-btn').prop('disabled', false);
+        },
+        error: function(xhr, status, error) {
+            alert("Error fetching data: " + error);
+        }
+    });
+});
     });
 </script>
 {% endblock %}                  

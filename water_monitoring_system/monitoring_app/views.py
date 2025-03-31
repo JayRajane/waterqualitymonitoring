@@ -65,28 +65,50 @@ class WaterQualityDataViewSet(viewsets.ModelViewSet):
         user_id = request.query_params.get('user_id')
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
-        
+        time_interval = request.query_params.get('time_interval', '0')  # Default to 0 (no interval)
+    
         if not all([user_id, start_date, end_date]):
             return Response({"error": "user_id, start_date and end_date parameters are required"}, status=400)
-        
+    
         try:
             start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
             end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+            time_interval = int(time_interval)
         except ValueError:
             return Response({"error": "Invalid date format. Use YYYY-MM-DD"}, status=400)
-        
+    
         # Check if date range is valid (max 31 days)
         if (end_date - start_date).days > 31:
             return Response({"error": "Date range cannot exceed 31 days"}, status=400)
-        
+    
         # Get data for the date range
-        data = WaterQualityData.objects.filter(
+        queryset = WaterQualityData.objects.filter(
             user_id=user_id,
             date__gte=start_date,
             date__lte=end_date
-        ).order_by('date', 'timestamp')
+        ).order_by('timestamp')
+    
+        # Apply time interval filtering if requested
+        if time_interval > 0:
+            # Convert minutes to seconds for comparison
+            interval_seconds = time_interval * 60
         
-        serializer = self.get_serializer(data, many=True)
+            filtered_data = []
+            last_timestamp = None
+        
+            for item in queryset:
+                if last_timestamp is None:
+                    filtered_data.append(item)
+                    last_timestamp = item.timestamp
+                else:
+                    time_diff = (item.timestamp - last_timestamp).total_seconds()
+                    if time_diff >= interval_seconds:
+                        filtered_data.append(item)
+                        last_timestamp = item.timestamp
+        
+            queryset = filtered_data
+    
+        serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
 class UserViewSet(viewsets.ReadOnlyModelViewSet):
@@ -166,100 +188,198 @@ def water_quality_data(request):
 @login_required
 def download_data(request, user_id):
     if request.method == 'POST':
-        user = User.objects.get(id=user_id)
-        start_date = request.POST.get('start_date')
-        end_date = request.POST.get('end_date')
-        file_format = request.POST.get('format')
-        
-        # Get selected fields
-        fields = []
-        for field in ['ph', 'flow', 'daily_flow','total_flow', 'cod', 'bod', 'tss' ]:
-            if request.POST.get(field):
-                fields.append(field)
-        
-        if not fields:
+        try:
+            user = User.objects.get(id=user_id)
+            start_date_str = request.POST.get('start_date')
+            end_date_str = request.POST.get('end_date')
+            file_format = request.POST.get('format')
+            time_interval = int(request.POST.get('time_interval', 0))
+            
+            # Convert string dates to date objects
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+            
+            # Validate date range (max 31 days)
+            if (end_date - start_date).days > 31:
+                messages.error(request, "Date range cannot exceed 31 days")
+                return redirect('download_page', user_id=user_id)
+            
+            # Get the base queryset
+            queryset = WaterQualityData.objects.filter(
+                user=user,
+                date__gte=start_date,
+                date__lte=end_date
+            ).order_by('timestamp')
+            
+            # Apply time interval filtering if requested
+            if time_interval > 0:
+                interval_seconds = time_interval * 60
+                filtered_data = []
+                last_timestamp = None
+                
+                # Evaluate the queryset to a list to avoid multiple DB hits
+                data_list = list(queryset)
+                
+                for item in data_list:
+                    if last_timestamp is None:
+                        filtered_data.append(item)
+                        last_timestamp = item.timestamp
+                    else:
+                        time_diff = (item.timestamp - last_timestamp).total_seconds()
+                        if time_diff >= interval_seconds:
+                            filtered_data.append(item)
+                            last_timestamp = item.timestamp
+                
+                # Use the filtered data
+                data = filtered_data
+            else:
+                data = list(queryset)
+            
+            # Get selected fields
+            fields = []
+            for field in ['ph', 'flow', 'daily_flow', 'total_flow', 'cod', 'bod', 'tss']:
+                if request.POST.get(field):
+                    fields.append(field)
+            
+            if not fields:
+                messages.error(request, "Please select at least one parameter")
+                return redirect('download_page', user_id=user_id)
+            
+            # Create the response based on the file format
+            if file_format == 'excel':
+                import openpyxl
+                from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+                
+                # Create a workbook and select the active worksheet
+                wb = openpyxl.Workbook()
+                ws = wb.active
+                ws.title = "Water Quality Data"
+                
+                # Style configurations
+                header_font = Font(bold=True, color="FFFFFF")
+                header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+                centered_alignment = Alignment(horizontal="center", vertical="center")
+                border = Border(
+                    left=Side(border_style="thin", color="000000"),
+                    right=Side(border_style="thin", color="000000"),
+                    top=Side(border_style="thin", color="000000"),
+                    bottom=Side(border_style="thin", color="000000")
+                )
+                
+                # Add header row
+                header = ['Date', 'Time'] + [field.upper() for field in fields]
+                for col_num, column_title in enumerate(header, 1):
+                    cell = ws.cell(row=1, column=col_num, value=column_title)
+                    cell.font = header_font
+                    cell.fill = header_fill
+                    cell.alignment = centered_alignment
+                    cell.border = border
+                    
+                    # Adjust column width to fit content
+                    ws.column_dimensions[openpyxl.utils.get_column_letter(col_num)].width = max(12, len(column_title) + 4)
+                
+                # Add data rows
+                row_fill = PatternFill(start_color="E9EDF4", end_color="E9EDF4", fill_type="solid")
+                alt_row_fill = PatternFill(start_color="D3DFEE", end_color="D3DFEE", fill_type="solid")
+                
+                for row_num, item in enumerate(data, 2):
+                    # Apply alternating row colors
+                    row_color = row_fill if row_num % 2 == 0 else alt_row_fill
+                    
+                    # Date column
+                    date_cell = ws.cell(row=row_num, column=1, value=item.date.strftime('%Y-%m-%d'))
+                    date_cell.alignment = centered_alignment
+                    date_cell.border = border
+                    date_cell.fill = row_color
+                    
+                    # Time column
+                    time_string = item.timestamp.strftime('%H:%M:%S')
+                    time_cell = ws.cell(row=row_num, column=2, value=time_string)
+                    time_cell.alignment = centered_alignment
+                    time_cell.border = border
+                    time_cell.fill = row_color
+                    time_cell.number_format = '@'  # Text format
+                    
+                    # Data columns
+                    for col_num, field in enumerate(fields, 3):
+                        cell = ws.cell(row=row_num, column=col_num, value=getattr(item, field))
+                        cell.alignment = centered_alignment
+                        cell.border = border
+                        cell.fill = row_color
+                
+                # Create the response
+                response = HttpResponse(
+                    content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                )
+                response['Content-Disposition'] = f'attachment; filename="water_quality_data_{start_date}_to_{end_date}.xlsx"'
+                
+                # Save the workbook to the response
+                wb.save(response)
+                
+                return response
+            
+            elif file_format == 'pdf':
+                from reportlab.pdfgen import canvas
+                from reportlab.lib.pagesizes import letter
+                from reportlab.lib import colors
+                from reportlab.platypus import Table, TableStyle
+                
+                response = HttpResponse(content_type='application/pdf')
+                response['Content-Disposition'] = f'attachment; filename="water_quality_data_{start_date}_to_{end_date}.pdf"'
+                
+                buffer = io.BytesIO()
+                p = canvas.Canvas(buffer, pagesize=letter)
+                
+                # Set up the document
+                p.setTitle(f"Water Quality Data for {user.username}")
+                p.drawString(100, 750, f"Water Quality Data for {user.username}")
+                p.drawString(100, 700, f"Date Range: {start_date} to {end_date}")
+                
+                # Create the table data
+                table_data = [['Date', 'Time'] + [field.upper() for field in fields]]
+                
+                for item in data:
+                    row = [item.date.strftime('%Y-%m-%d'), item.timestamp.strftime('%H:%M:%S')]
+                    for field in fields:
+                        row.append(str(getattr(item, field)))
+                    table_data.append(row)
+                
+                # Create the table
+                table = Table(table_data)
+                table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                    ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ]))
+                
+                # Draw the table
+                table.wrapOn(p, 400, 600)
+                table.drawOn(p, 72, 600)
+                
+                p.showPage()
+                p.save()
+                
+                pdf = buffer.getvalue()
+                buffer.close()
+                response.write(pdf)
+                
+                return response
+            
+        except User.DoesNotExist:
+            messages.error(request, "User not found")
             return redirect('download_page', user_id=user_id)
-        
-        # Convert string dates to datetime
-        start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
-        end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
-        
-        # Validate date range
-        if (end_date - start_date).days > 31:
+        except ValueError as e:
+            messages.error(request, f"Invalid date format: {str(e)}")
             return redirect('download_page', user_id=user_id)
-        
-        # Get data
-        data = WaterQualityData.objects.filter(
-            user=user,
-            date__gte=start_date,
-            date__lte=end_date
-        ).order_by('date', 'timestamp')
-        
-        # Create the response based on the file format
-        if file_format == 'excel':
-            response = HttpResponse(content_type='text/csv')
-            response['Content-Disposition'] = f'attachment; filename="water_quality_data_{start_date}_to_{end_date}.csv"'
-            
-            writer = csv.writer(response)
-            header = ['Date', 'Time'] + [field.upper() for field in fields]
-            writer.writerow(header)
-            
-            for item in data:
-                row = [item.date.strftime('%Y-%m-%d'), item.timestamp.strftime('%H:%M:%S')]
-                for field in fields:
-                    row.append(getattr(item, field))
-                writer.writerow(row)
-            
-            return response
-        
-        elif file_format == 'pdf':
-            response = HttpResponse(content_type='application/pdf')
-            response['Content-Disposition'] = f'attachment; filename="water_quality_data_{start_date}_to_{end_date}.pdf"'
-            
-            buffer = io.BytesIO()
-            p = canvas.Canvas(buffer, pagesize=letter)
-            
-            # Set up the document
-            p.setTitle(f"Water Quality Data for {user.username}")
-            p.drawString(100, 750, f"Water Quality Data for {user.username}")
-            p.drawString(100, 730, f"Date Range: {start_date} to {end_date}")
-            
-            # Create the table data
-            table_data = [['Date', 'Time'] + [field.upper() for field in fields]]
-            
-            for item in data:
-                row = [item.date.strftime('%Y-%m-%d'), item.timestamp.strftime('%H:%M:%S')]
-                for field in fields:
-                    row.append(str(getattr(item, field)))
-                table_data.append(row)
-            
-            # Create the table
-            table = Table(table_data)
-            table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black),
-            ]))
-            
-            # Draw the table
-            table.wrapOn(p, 400, 600)
-            table.drawOn(p, 72, 600)
-            
-            p.showPage()
-            p.save()
-            
-            pdf = buffer.getvalue()
-            buffer.close()
-            response.write(pdf)
-            
-            return response
+        except Exception as e:
+            messages.error(request, f"An error occurred: {str(e)}")
+            return redirect('download_page', user_id=user_id)
     
     return redirect('download_page', user_id=user_id)
-
 @login_required
 def submit_data(request):
     if request.method == 'POST':
