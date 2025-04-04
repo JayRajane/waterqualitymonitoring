@@ -5,6 +5,7 @@ from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from datetime import datetime, timedelta
+from django.utils import timezone
 import csv
 import io
 from reportlab.pdfgen import canvas
@@ -293,7 +294,8 @@ def download_data(request, user_id):
                     date_cell.fill = row_color
                     
                     # Time column
-                    time_string = item.timestamp.strftime('%H:%M:%S')
+                    localized_timestamp = timezone.localtime(item.timestamp)
+                    time_string = localized_timestamp.strftime('%H:%M:%S')
                     time_cell = ws.cell(row=row_num, column=2, value=time_string)
                     time_cell.alignment = centered_alignment
                     time_cell.border = border
@@ -339,7 +341,9 @@ def download_data(request, user_id):
                 table_data = [['Date', 'Time'] + [field.upper() for field in fields]]
                 
                 for item in data:
-                    row = [item.date.strftime('%Y-%m-%d'), item.timestamp.strftime('%H:%M:%S')]
+                    localized_timestamp = timezone.localtime(item.timestamp)
+                    row = [item.date.strftime('%Y-%m-%d'), localized_timestamp.strftime('%H:%M:%S')]
+
                     for field in fields:
                         row.append(str(getattr(item, field)))
                     table_data.append(row)
