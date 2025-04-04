@@ -17,6 +17,9 @@ from .models import WaterQualityData
 from .serializers import WaterQualityDataSerializer, UserSerializer
 from django.contrib.auth.models import User
 from django.contrib.auth import logout
+from reportlab.lib.colors import HexColor
+from django.utils import timezone
+from django.contrib import messages  # If using messages
 
 
 
@@ -254,7 +257,7 @@ def download_data(request, user_id):
                 # Create a workbook and select the active worksheet
                 wb = openpyxl.Workbook()
                 ws = wb.active
-                ws.title = "Water Quality Data"
+                ws.title = "WATER QUALITY OF DATA"
                 
                 # Style configurations
                 header_font = Font(bold=True, color="FFFFFF")
@@ -324,53 +327,64 @@ def download_data(request, user_id):
                 from reportlab.pdfgen import canvas
                 from reportlab.lib.pagesizes import letter
                 from reportlab.lib import colors
-                from reportlab.platypus import Table, TableStyle
-                
+                from reportlab.lib.colors import HexColor
+                from reportlab.platypus import Table, TableStyle, SimpleDocTemplate, Paragraph, Spacer
+                from reportlab.lib.styles import getSampleStyleSheet
+                from reportlab.lib.units import inch
+    
                 response = HttpResponse(content_type='application/pdf')
                 response['Content-Disposition'] = f'attachment; filename="water_quality_data_{start_date}_to_{end_date}.pdf"'
-                
+    
                 buffer = io.BytesIO()
-                p = canvas.Canvas(buffer, pagesize=letter)
-                
-                # Set up the document
-                p.setTitle(f"Water Quality Data for {user.username}")
-                p.drawString(100, 750, f"Water Quality Data for {user.username}")
-                p.drawString(100, 700, f"Date Range: {start_date} to {end_date}")
-                
+    
+                # Use SimpleDocTemplate to handle pagination automatically
+                doc = SimpleDocTemplate(buffer, pagesize=letter, 
+                           rightMargin=0.5*inch, leftMargin=0.5*inch,
+                           topMargin=0.75*inch, bottomMargin=0.75*inch)
+    
+                # Create elements list to build document
+                elements = []
+    
+                # Add title and date range
+                styles = getSampleStyleSheet()
+                title = Paragraph(f"Water Quality Data for {user.username}", styles['Title'])
+                date_range = Paragraph(f"Date Range: {start_date} to {end_date}", styles['Normal'])
+                elements.append(title)
+                elements.append(date_range)
+                elements.append(Spacer(1, 0.25*inch))
+    
                 # Create the table data
                 table_data = [['Date', 'Time'] + [field.upper() for field in fields]]
-                
+    
                 for item in data:
                     localized_timestamp = timezone.localtime(item.timestamp)
                     row = [item.date.strftime('%Y-%m-%d'), localized_timestamp.strftime('%H:%M:%S')]
-
                     for field in fields:
                         row.append(str(getattr(item, field)))
                     table_data.append(row)
-                
-                # Create the table
-                table = Table(table_data)
+    
+                # Create the table with some auto-width
+                table = Table(table_data, repeatRows=1)  # repeatRows=1 makes header repeat on each page
                 table.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                    ('BACKGROUND', (0, 0), (-1, 0), HexColor('#0096FF')),  # Custom blue color
                     ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
                     ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                     ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
                     ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                    ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                    ('BACKGROUND', (0, 1), (-1, -1), colors.white),
                     ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                 ]))
-                
-                # Draw the table
-                table.wrapOn(p, 400, 600)
-                table.drawOn(p, 72, 600)
-                
-                p.showPage()
-                p.save()
-                
+    
+                elements.append(table)
+    
+                # Build the document with all elements
+                doc.build(elements)
+    
                 pdf = buffer.getvalue()
                 buffer.close()
                 response.write(pdf)
-                
+    
                 return response
             
         except User.DoesNotExist:
