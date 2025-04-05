@@ -18,7 +18,7 @@ Project URLs:
 / → Dashboard  
 /data-entry/ → Automatic Data Generation  
 /live-status/ → Live Status Monitoring  
-/download/5/ → Download Data (PDF/Excel)  
+/download/ → Download Data (PDF/Excel)  
 /add-data/ → Manual Data Entry  
 /admin/ → Django Admin Panel  
 /admin/auth/user/ → Manage Users  
