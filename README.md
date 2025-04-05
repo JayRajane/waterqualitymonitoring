@@ -31,8 +31,8 @@ Project URLs:
 Installation & Setup:
 
 ```bash
-git clone https://github.com/yourusername/water-monitoring-system.git
-cd water-monitoring-system
+git clone https://github.com/JayRajane/waterqualitymonitoring.git
+cd water_monitoring_system
 
 python -m venv env
 env\Scripts\activate  # For Windows
