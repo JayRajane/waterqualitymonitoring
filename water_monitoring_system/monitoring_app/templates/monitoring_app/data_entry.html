@@ -2,65 +2,58 @@
 
 {% block content %}
 <div class="sliding-header">
-    <h1>Add New Data</h1>
-    <p>Add new water quality measurements</p>
+    <h1>Automatic Data Generation</h1>
+    <p>Generate random water quality measurements</p>
 </div>
 
 <div class="row mb-4">
     <div class="col-md-8 offset-md-2">
         <div class="card">
             <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">Enter New Data</h5>
+                <h5 class="mb-0">Data Generator</h5>
             </div>
             <div class="card-body">
-                <form method="post" id="data-entry-form">
+                <form id="data-generator-form">
                     {% csrf_token %}
-                    <div class="mb-3">
-                        <label for="user-select" class="form-label">Select User</label>
-                        <select class="form-select" id="user-select" name="user_id" required>
-                            <option value="">-- Select User --</option>
-                            {% for user in users %}
-                            <option value="{{ user.id }}">{{ user.username }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="ph" class="form-label">pH Value</label>
-                            <input type="number" class="form-control" id="ph" name="ph" step="0.01" min="0" max="14">
-                            <small class="text-muted">Optional</small>
+                    <div class="mb-3 d-flex align-items-end">
+                        <div class="flex-grow-1 me-2">
+                            <label for="user-select" class="form-label">Select User</label>
+                            <select class="form-select" id="user-select" name="user_id" required>
+                                <option value="">-- Select User --</option>
+                                {% for user in users %}
+                                <option value="{{ user.id }}">{{ user.username }}</option>
+                                {% endfor %}
+                            </select>
                         </div>
-                        <div class="col-md-6">
-                            <label for="flow" class="form-label">Flow (L/min)</label>
-                            <input type="number" class="form-control" id="flow" name="flow" step="0.01" min="0">
-                            <small class="text-muted">Optional</small>
+                        <div>
+                            <button type="button" id="start-generator" class="btn btn-success">Start Auto Generation</button>
+                            <button type="button" id="stop-generator" class="btn btn-danger" style="display: none;">Stop Generation</button>
                         </div>
                     </div>
                     
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="cod" class="form-label">COD (mg/L)</label>
-                            <input type="number" class="form-control" id="cod" name="cod" step="0.01" min="0">
-                            <small class="text-muted">Optional</small>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="bod" class="form-label">BOD (mg/L)</label>
-                            <input type="number" class="form-control" id="bod" name="bod" step="0.01" min="0">
-                            <small class="text-muted">Optional</small>
-                        </div>
+                    <div class="alert alert-info" id="generation-status" style="display: none;">
+                        <span id="status-message">Random data generation is running...</span>
+                        <br>
+                        <small>Sending data every 5 seconds</small>
                     </div>
                     
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="tss" class="form-label">TSS (mg/L)</label>
-                            <input type="number" class="form-control" id="tss" name="tss" step="0.01" min="0">
-                            <small class="text-muted">Optional</small>
+                    <div class="card mt-3">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0">Last Generated Data</h6>
                         </div>
-                    </div>
-                    
-                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                        <button type="submit" class="btn btn-primary">Submit Data</button>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>pH Value:</strong> <span id="last-ph">-</span></p>
+                                    <p><strong>Flow (L/min):</strong> <span id="last-flow">-</span></p>
+                                    <p><strong>COD (mg/L):</strong> <span id="last-cod">-</span></p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>BOD (mg/L):</strong> <span id="last-bod">-</span></p>
+                                    <p><strong>TSS (mg/L):</strong> <span id="last-tss">-</span></p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -76,39 +69,105 @@
 {% block extra_js %}
 <script>
     $(document).ready(function() {
-        $('#data-entry-form').submit(function(e) {
-            e.preventDefault();
-            
-            // Validate that at least one data field has been filled
-            const hasData = $('#ph').val() || $('#flow').val() || $('#cod').val() || $('#bod').val() || $('#tss').val();
-            
-            if (!hasData) {
-                alert("Please enter at least one measurement value.");
+        let generatorInterval;
+        let generationCount = 0;
+        
+        // Generate random data within realistic ranges
+        function generateRandomData() {
+            return {
+                ph: (Math.random() * 14).toFixed(2),
+                flow: (Math.random() * 100).toFixed(2),
+                cod: (Math.random() * 300).toFixed(2),
+                bod: (Math.random() * 150).toFixed(2),
+                tss: (Math.random() * 500).toFixed(2)
+            };
+        }
+        
+        // Update display with latest values
+        function updateDisplay(data) {
+            $('#last-ph').text(data.ph);
+            $('#last-flow').text(data.flow);
+            $('#last-cod').text(data.cod);
+            $('#last-bod').text(data.bod);
+            $('#last-tss').text(data.tss);
+        }
+        
+        // Send data to server
+        function sendData() {
+            const userId = $('#user-select').val();
+            if (!userId) {
+                stopGenerator();
+                alert("User selection is required. Generator stopped.");
                 return;
             }
             
-            // Prepare form data
-            const formData = $(this).serialize();
+            const randomData = generateRandomData();
+            updateDisplay(randomData);
             
-            // Submit data via AJAX
+            const formData = {
+                user_id: userId,
+                ph: randomData.ph,
+                flow: randomData.flow,
+                cod: randomData.cod,
+                bod: randomData.bod,
+                tss: randomData.tss,
+                csrfmiddlewaretoken: $('input[name="csrfmiddlewaretoken"]').val()
+            };
+            
             $.ajax({
                 url: "{% url 'submit_data' %}",
                 method: "POST",
                 data: formData,
                 success: function(response) {
+                    generationCount++;
                     if (response.success) {
-                        alert("Data submitted successfully!");
-                        // Reset form
-                        $('#data-entry-form')[0].reset();
+                        $('#status-message').text(`Generated and sent ${generationCount} data sets successfully!`);
                     } else {
-                        alert("Error: " + response.error);
+                        $('#status-message').text(`Error on dataset ${generationCount}: ${response.error}`);
                     }
                 },
                 error: function(xhr) {
-                    alert("Error submitting data. Please try again.");
+                    $('#status-message').text(`Network error on dataset ${generationCount}. Still generating...`);
                 }
             });
-        });
+        }
+        
+        // Start data generation
+        function startGenerator() {
+            const userId = $('#user-select').val();
+            if (!userId) {
+                alert("Please select a user first!");
+                return;
+            }
+            
+            // Send initial data immediately
+            sendData();
+            
+            // Then set interval for every 5 seconds
+            generatorInterval = setInterval(sendData, 5000);
+            
+            // Update UI
+            $('#start-generator').hide();
+            $('#stop-generator').show();
+            $('#generation-status').show();
+            $('#user-select').prop('disabled', true);
+        }
+        
+        // Stop data generation
+        function stopGenerator() {
+            clearInterval(generatorInterval);
+            
+            // Update UI
+            $('#start-generator').show();
+            $('#stop-generator').hide();
+            $('#user-select').prop('disabled', false);
+            $('#status-message').text(`Generation stopped after ${generationCount} data sets.`);
+            generationCount = 0;
+        }
+        
+        // Button event handlers
+        $('#start-generator').click(startGenerator);
+        $('#stop-generator').click(stopGenerator);
     });
 </script>
 {% endblock %}

@@ -199,16 +199,13 @@ def download_data(request, user_id):
             file_format = request.POST.get('format')
             time_interval = int(request.POST.get('time_interval', 0))
             
-            # Convert string dates to date objects
             start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
             end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
             
-            # Validate date range (max 31 days)
             if (end_date - start_date).days > 31:
                 messages.error(request, "Date range cannot exceed 31 days")
                 return redirect('download_page', user_id=user_id)
             
-            # Get the base queryset
             queryset = WaterQualityData.objects.filter(
                 user=user,
                 date__gte=start_date,

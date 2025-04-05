@@ -12,9 +12,20 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 import os
 from pathlib import Path
 
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Static files (CSS, JavaScript, Images)
+STATIC_URL = 'static/'
+
+# Directory where collectstatic will gather files
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')  # Changed to 'staticfiles'
+
+# Directories where Django looks for static files during development
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'static'),
+]
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-your-secret-key-here'
 
@@ -36,6 +47,8 @@ INSTALLED_APPS = [
     'corsheaders',
 
 ]
+
+
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
