@@ -57,13 +57,13 @@ Folder Structure:
 
 ```
 water_monitoring_system/
-├── monitoring_app/
-├── templates/
-├── static/
-├── db.sqlite3
-├── manage.py
-├── requirements.txt
-└── README.md
+├── monitoring_app/                # Your main Django app with models, views, etc.
+├── staticfiles/                   # Static files (CSS, JS, images)
+├── water_monitoring_system/       # Project-level settings (settings.py, urls.py, etc.)
+├── db.sqlite3                     # Default SQLite database
+├── manage.py                      # Django project manager script
+├── requirements.txt               # Project dependencies
+
 ```
 
 ---
