@@ -261,9 +261,16 @@ $('#view-data-btn').click(function() {
                 row.append(`<td>${date.toISOString().split('T')[0]}</td>`);
                 row.append(`<td>${date.toTimeString().split(' ')[0]}</td>`);
                 
-                selectedParams.forEach(param => {
-                    row.append(`<td>${item[param] || ''}</td>`);
-                });
+                // In the view-data-btn click handler function, modify the data rows creation:
+selectedParams.forEach(param => {
+    // Format numbers with 2 decimal places for flow values
+    if (param === 'daily_flow' || param === 'total_flow') {
+        const value = item[param] ? parseFloat(item[param]).toFixed(2) : '';
+        row.append(`<td>${value}</td>`);
+    } else {
+        row.append(`<td>${item[param] || ''}</td>`);
+    }
+});
                 
                 $('#preview-body').append(row);
             });

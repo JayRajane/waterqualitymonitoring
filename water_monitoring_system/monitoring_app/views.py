@@ -303,11 +303,24 @@ def download_data(request, user_id):
                     time_cell.number_format = '@'  # Text format
                     
                     # Data columns
+
+
+                    # Add data rows in the Excel generation section
                     for col_num, field in enumerate(fields, 3):
-                        cell = ws.cell(row=row_num, column=col_num, value=getattr(item, field))
+                        value = getattr(item, field)
+    
+                        # Format daily_flow and total_flow to 2 decimal places
+                        if field in ['daily_flow', 'total_flow'] and value is not None:
+                            value = round(value, 2)
+        
+                        cell = ws.cell(row=row_num, column=col_num, value=value)
                         cell.alignment = centered_alignment
                         cell.border = border
                         cell.fill = row_color
+    
+                        # Set number format for decimal fields
+                        if field in ['daily_flow', 'total_flow', 'ph', 'flow', 'cod', 'bod', 'tss']:
+                            cell.number_format = '0.00'
                 
                 # Create the response
                 response = HttpResponse(
@@ -353,11 +366,19 @@ def download_data(request, user_id):
                 # Create the table data
                 table_data = [['Date', 'Time'] + [field.upper() for field in fields]]
     
+
+                # Add data rows for PDF
                 for item in data:
                     localized_timestamp = timezone.localtime(item.timestamp)
                     row = [item.date.strftime('%Y-%m-%d'), localized_timestamp.strftime('%H:%M:%S')]
                     for field in fields:
-                        row.append(str(getattr(item, field)))
+                        value = getattr(item, field)
+                        # Format daily_flow and total_flow to 2 decimal places
+                        if field in ['daily_flow', 'total_flow'] and value is not None:
+                            value = f"{value:.2f}"
+                        else:
+                            value = str(value)
+                        row.append(value)
                     table_data.append(row)
     
                 # Create the table with some auto-width
