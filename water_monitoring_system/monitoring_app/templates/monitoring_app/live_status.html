@@ -10,7 +10,7 @@
 <div class="row text-center">
     <div class="col-md-4 mb-3"><div class="data-card"><h3>pH</h3><p id="phValue">-</p></div></div>
     <div class="col-md-4 mb-3"><div class="data-card"><h3>Flow</h3><p id="flowValue">-</p></div></div>
-    <div class="col-md-4 mb-3"><div class="data-card"><h3>Total Flow</h3><p id="totalFlowValue">-</p></div></div>
+    <div class="col-md-4 mb-3"><div class="data-card"><h3>Daily Flow</h3><p id="dailyFlowValue">-</p></div></div>
     <div class="col-md-4 mb-3"><div class="data-card"><h3>COD</h3><p id="codValue">-</p></div></div>
     <div class="col-md-4 mb-3"><div class="data-card"><h3>BOD</h3><p id="bodValue">-</p></div></div>
     <div class="col-md-4 mb-3"><div class="data-card"><h3>TSS</h3><p id="tssValue">-</p></div></div>
@@ -31,6 +31,7 @@
                                 <th>pH</th>
                                 <th>Flow (L/min)</th>
                                 <th>Total Flow (L)</th>
+                                <th>Daily Flow (L) </th>
                                 <th>COD (mg/L)</th>
                                 <th>BOD (mg/L)</th>
                                 <th>TSS (mg/L)</th>
@@ -58,11 +59,27 @@
     let lastDataTimestamp = null;
     
     // Format a value with units, handling null values
-    function formatValue(value, unit = '', nullText = '-') {
+    function formatValue(value, unit = '', nullText = '-', forceDecimals = false) {
         if (value === null || value === undefined || value === '') {
             return nullText;
         }
-        return `${value} ${unit}`.trim();
+        
+        // Convert to number if it's a string
+        const numValue = typeof value === 'string' ? parseFloat(value) : value;
+        
+        // Format with 2 decimals if requested or for flow/daily flow/total flow
+        if (forceDecimals || unit.includes('L/min') || unit.includes('L')) {
+            return `${numValue.toFixed(2)} ${unit}`.trim();
+        }
+        
+        return `${numValue} ${unit}`.trim();
+    }
+    
+    // Calculate daily flow from total flow (assuming total flow resets daily)
+    function calculateDailyFlow(totalFlow) {
+        // You might want to implement more sophisticated daily flow calculation here
+        // For now, we'll just return the total flow as daily flow
+        return totalFlow;
     }
     
     // Fetch and update the latest data
@@ -73,8 +90,12 @@
             success: function(data) {
                 // Update the display cards
                 document.getElementById("phValue").innerText = formatValue(data.ph);
-                document.getElementById("flowValue").innerText = formatValue(data.flow, 'L/min');
-                document.getElementById("totalFlowValue").innerText = formatValue(data.total_flow, 'L');
+                document.getElementById("flowValue").innerText = formatValue(data.flow, 'L/min', '-', true);
+                
+                // Calculate and display daily flow
+                const dailyFlow = calculateDailyFlow(data.total_flow);
+                document.getElementById("dailyFlowValue").innerText = formatValue(dailyFlow, 'L', '-', true);
+                
                 document.getElementById("codValue").innerText = formatValue(data.cod, 'mg/L');
                 document.getElementById("bodValue").innerText = formatValue(data.bod, 'mg/L');
                 document.getElementById("tssValue").innerText = formatValue(data.tss, 'mg/L');
@@ -110,11 +131,13 @@
                     rows += `<tr>
                         <td>${date.toLocaleString()}</td>
                         <td>${formatValue(item.ph)}</td>
-                        <td>${formatValue(item.flow, 'L/min')}</td>
-                        <td>${formatValue(item.total_flow, 'L')}</td>
+                        <td>${formatValue(item.flow, 'L/min', '-', true)}</td>
+                        <td>${formatValue(item.daily_flow, 'L' , '-', true)}</td>
+                        <td>${formatValue(item.total_flow, 'L', '-', true)}</td>
                         <td>${formatValue(item.cod, 'mg/L')}</td>
                         <td>${formatValue(item.bod, 'mg/L')}</td>
                         <td>${formatValue(item.tss, 'mg/L')}</td>
+                        
                     </tr>`;
                 });
                 $('#history-body').html(rows);
