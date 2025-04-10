@@ -99,7 +99,7 @@
                         <label class="form-label">File Format</label>
                         <div class="form-check">
                             <input class="form-check-input" type="radio" name="format" id="excel" value="excel" checked>
-                            <label class="form-check-label" for="excel">Excel (CSV)</label>
+                            <label class="form-check-label" for="excel">Excel</label>
                         </div>
                         <div class="form-check">
                             <input class="form-check-input" type="radio" name="format" id="pdf" value="pdf">
@@ -244,6 +244,8 @@ $('#view-data-btn').click(function() {
                 return;
             }
             
+            console.log("API Response Data:", data);  // Debug log
+            
             // Clear previous preview
             $('#preview-head tr').empty();
             $('#preview-body').empty();
@@ -261,16 +263,26 @@ $('#view-data-btn').click(function() {
                 row.append(`<td>${date.toISOString().split('T')[0]}</td>`);
                 row.append(`<td>${date.toTimeString().split(' ')[0]}</td>`);
                 
-                // In the view-data-btn click handler function, modify the data rows creation:
-selectedParams.forEach(param => {
-    // Format numbers with 2 decimal places for flow values
-    if (param === 'daily_flow' || param === 'total_flow') {
-        const value = item[param] ? parseFloat(item[param]).toFixed(2) : '';
-        row.append(`<td>${value}</td>`);
-    } else {
-        row.append(`<td>${item[param] || ''}</td>`);
-    }
-});
+                selectedParams.forEach(param => {
+                    // Handle daily_flow specifically
+                    if (param === 'daily_flow' && item.daily_flow === null) {
+                        // Calculate daily_flow if it's null
+                        const dailyFlow = item.flow || 0; // Or implement your calculation logic here
+                        row.append(`<td>${dailyFlow.toFixed(2)}</td>`);
+                    } else {
+                        // Format numbers with 2 decimal places for numeric values
+                        const value = item[param];
+                        if (value !== undefined && value !== null) {
+                            if (['daily_flow', 'total_flow', 'ph', 'flow', 'cod', 'bod', 'tss'].includes(param)) {
+                                row.append(`<td>${parseFloat(value).toFixed(2)}</td>`);
+                            } else {
+                                row.append(`<td>${value}</td>`);
+                            }
+                        } else {
+                            row.append(`<td>0.00</td>`);  // Default to 0.00 for missing values
+                        }
+                    }
+                });
                 
                 $('#preview-body').append(row);
             });
@@ -280,6 +292,7 @@ selectedParams.forEach(param => {
             $('#download-btn').prop('disabled', false);
         },
         error: function(xhr, status, error) {
+            console.error("API Error:", xhr.responseText);  // Debug log
             alert("Error fetching data: " + error);
         }
     });

@@ -1,0 +1,25 @@
+{% extends 'monitoring_app/base.html' %}
+
+{% block content %}
+<div class="sliding-header">
+    <h1>Welcome, {{ user.username }}!</h1>
+    <p>View your water quality monitoring data</p>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="action-button">
+            <h3>Live Status</h3>
+            <p>View real-time water quality data</p>
+            <a href="{% url 'live_status' user.id %}" class="btn btn-primary">View Live Status</a>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="action-button">
+            <h3>Download Data</h3>
+            <p>Download historical water quality data</p>
+            <a href="{% url 'download_page' user.id %}" class="btn btn-success">Download Data</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,91 @@
+{% extends 'monitoring_app/base.html' %}
+{% load widget_tweaks %}
+
+{% block content %}
+<div class="sliding-header">
+    <h1>Add New User</h1>
+    <p>Create a new user account</p>
+</div>
+
+<!-- Display messages -->
+{% if messages %}
+    <div class="messages mb-4">
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+
+<div class="card">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">User Details</h5>
+    </div>
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="id_username" class="form-label">Username</label>
+                    {{ form.username|add_class:"form-control" }}
+                    {% if form.username.errors %}
+                        <div class="text-danger">{{ form.username.errors }}</div>
+                    {% endif %}
+                </div>
+                <div class="col-md-6">
+                    <label for="id_email" class="form-label">Email</label>
+                    {{ form.email|add_class:"form-control" }}
+                    {% if form.email.errors %}
+                        <div class="text-danger">{{ form.email.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="id_first_name" class="form-label">First Name</label>
+                    {{ form.first_name|add_class:"form-control" }}
+                </div>
+                <div class="col-md-6">
+                    <label for="id_last_name" class="form-label">Last Name</label>
+                    {{ form.last_name|add_class:"form-control" }}
+                </div>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="id_role" class="form-label">Role</label>
+                    {{ form.role|add_class:"form-select" }}
+                </div>
+                <div class="col-md-6">
+                    <label for="id_contact_number" class="form-label">Contact Number</label>
+                    {{ form.contact_number|add_class:"form-control" }}
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="id_address" class="form-label">Address</label>
+                {{ form.address|add_class:"form-control" }}
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="id_state" class="form-label">State</label>
+                    {{ form.state|add_class:"form-control" }}
+                </div>
+                <div class="col-md-6">
+                    <label for="id_state_code" class="form-label">State Code</label>
+                    {{ form.state_code|add_class:"form-control" }}
+                </div>
+            </div>
+            
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                <button type="submit" class="btn btn-primary">Create User</button>
+                <a href="{% url 'user_management' %}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

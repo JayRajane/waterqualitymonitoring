@@ -1,10 +1,10 @@
+# serializers.py
 from rest_framework import serializers
-from .models import WaterQualityData
-from django.contrib.auth.models import User
+from .models import WaterQualityData, CustomUser
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
-        model = User
+        model = CustomUser  
         fields = ['id', 'username', 'email']
 
 class WaterQualityDataSerializer(serializers.ModelSerializer):

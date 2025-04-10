@@ -1,27 +1,156 @@
 from rest_framework import viewsets, permissions
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from django.shortcuts import render, redirect
-from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse
-from datetime import datetime, timedelta
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.http import HttpResponse, JsonResponse
+from datetime import datetime
 from django.utils import timezone
-import csv
-import io
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import letter
-from reportlab.lib import colors
-from reportlab.platypus import Table, TableStyle
-from django.http import JsonResponse
-from .models import WaterQualityData
-from .serializers import WaterQualityDataSerializer, UserSerializer
-from django.contrib.auth.models import User
+from django.contrib import messages
 from django.contrib.auth import logout
-from reportlab.lib.colors import HexColor
-from django.utils import timezone
-from django.contrib import messages  # If using messages
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib import colors
+from io import BytesIO
+from .models import WaterQualityData, CustomUser
+from .serializers import WaterQualityDataSerializer, UserSerializer
+from .forms import CustomUserCreationForm
+from django.contrib.auth import get_user_model
+import logging
 
+# Set up logging
+logger = logging.getLogger(__name__)
 
+User = get_user_model()
+
+def is_admin(user):
+    return user.is_authenticated and user.is_admin
+
+@login_required
+def dashboard(request):
+    if request.user.is_admin:
+        return render(request, 'monitoring_app/admin_dashboard.html')
+    return render(request, 'monitoring_app/user_dashboard.html')
+
+@login_required
+def all_users_dashboard(request):
+    if request.user.is_admin:
+        users = CustomUser.objects.filter(role=CustomUser.USER)
+        return render(request, 'monitoring_app/dashboard.html', {'users': users})
+    return redirect('dashboard')
+
+@login_required
+@user_passes_test(is_admin)
+def user_management(request):
+    users = CustomUser.objects.all()
+    return render(request, 'monitoring_app/user_management.html', {'users': users})
+
+@login_required
+@user_passes_test(is_admin)
+def add_user(request):
+    if request.method == 'POST':
+        logger.debug(f"POST data: {request.POST}")
+        form = CustomUserCreationForm(request.POST)
+        if form.is_valid():
+            try:
+                user = form.save(commit=False)
+                password = f"{user.username}@123"
+                user.set_password(password)
+                user.save()
+                messages.success(request, f'User {user.username} created successfully!')
+                return redirect('user_management')  # Ensure this redirects correctly
+            except Exception as e:
+                logger.error(f"Error saving user: {e}")
+                messages.error(request, f"Error creating user: {str(e)}")
+        else:
+            logger.error(f"Form errors: {form.errors}")
+            messages.error(request, "Please correct the errors below.")
+    else:
+        form = CustomUserCreationForm()
+    
+    return render(request, 'monitoring_app/add_user.html', {'form': form})
+
+@login_required
+@user_passes_test(is_admin)
+def delete_user(request, user_id):
+    user = get_object_or_404(CustomUser, id=user_id)
+    if request.method == 'POST':
+        if user != request.user:  # Prevent self-deletion
+            user.delete()
+            messages.success(request, f'User {user.username} deleted successfully!')
+        else:
+            messages.error(request, "You cannot delete your own account!")
+        return redirect('user_management')
+    return render(request, 'monitoring_app/delete_user_confirm.html', {'user': user})
+
+@login_required
+@user_passes_test(is_admin)
+def edit_user(request, user_id):
+    user = get_object_or_404(CustomUser, id=user_id)
+    if request.method == 'POST':
+        form = CustomUserCreationForm(request.POST, instance=user)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'User {user.username} updated successfully!')
+            return redirect('user_management')
+        else:
+            logger.error(f"Edit user form errors: {form.errors}")
+    else:
+        form = CustomUserCreationForm(instance=user)
+    return render(request, 'monitoring_app/add_user.html', {'form': form, 'edit_mode': True})
+
+@login_required
+@user_passes_test(is_admin)
+def download_user_credentials(request, user_id):
+    """
+    View for downloading user credentials as PDF.
+    """
+    user = get_object_or_404(CustomUser, id=user_id)
+    return generate_user_pdf(user)
+
+def generate_user_pdf(user):
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter)
+    elements = []
+    
+    styles = getSampleStyleSheet()
+    elements.append(Paragraph("New User Credentials", styles['Title']))
+    elements.append(Spacer(1, 12))
+    
+    user_data = [
+        ['Username', user.username],
+        ['Password', f"{user.username}@123"],  # Default password format
+        ['Email', user.email],
+        ['Role', user.get_role_display()],
+        ['First Name', user.first_name],
+        ['Last Name', user.last_name],
+        ['Contact Number', user.contact_number or '-'],
+        ['Address', user.address or '-'],
+        ['State', user.state or '-'],
+        ['State Code', user.state_code or '-']
+    ]
+    
+    table = Table(user_data)
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+    ]))
+    
+    elements.append(table)
+    doc.build(elements)
+    
+    pdf = buffer.getvalue()
+    buffer.close()
+    
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="user_{user.username}_credentials.pdf"'
+    response.write(pdf)
+    return response
 
 class WaterQualityDataViewSet(viewsets.ModelViewSet):
     queryset = WaterQualityData.objects.all()
@@ -33,74 +162,59 @@ class WaterQualityDataViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         queryset = WaterQualityData.objects.all()
-    
-        # Filter by user_id if provided
         user_id = self.request.query_params.get('user_id')
         if user_id:
             queryset = queryset.filter(user_id=user_id)
-    
-        # Limit results if requested
         limit = self.request.query_params.get('limit')
         if limit and limit.isdigit():
             queryset = queryset.order_by('-timestamp')[:int(limit)]
         else:
             queryset = queryset.order_by('-timestamp')
-    
         return queryset
-
     
     @action(detail=False, methods=['get'])
     def latest(self, request):
-        # Get the latest entry for a specific user
         user_id = request.query_params.get('user_id')
         if not user_id:
             return Response({"error": "user_id parameter is required"}, status=400)
-        
         latest_data = WaterQualityData.objects.filter(user_id=user_id).order_by('-timestamp').first()
         if not latest_data:
             return Response({"error": "No data found for this user"}, status=404)
-        
         serializer = self.get_serializer(latest_data)
         return Response(serializer.data)
     
     @action(detail=False, methods=['get'])
     def date_range(self, request):
-        # Get data for a specific date range and user
         user_id = request.query_params.get('user_id')
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
-        time_interval = request.query_params.get('time_interval', '0')  # Default to 0 (no interval)
-    
+        time_interval = request.query_params.get('time_interval', '0')
+        
         if not all([user_id, start_date, end_date]):
-            return Response({"error": "user_id, start_date and end_date parameters are required"}, status=400)
-    
+            return Response({"error": "user_id, start_date, and end_date parameters are required"}, status=400)
+        
         try:
             start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
             end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
             time_interval = int(time_interval)
         except ValueError:
             return Response({"error": "Invalid date format. Use YYYY-MM-DD"}, status=400)
-    
-        # Check if date range is valid (max 31 days)
+        
         if (end_date - start_date).days > 31:
             return Response({"error": "Date range cannot exceed 31 days"}, status=400)
-    
-        # Get data for the date range
+        
         queryset = WaterQualityData.objects.filter(
             user_id=user_id,
             date__gte=start_date,
             date__lte=end_date
         ).order_by('timestamp')
-    
-        # Apply time interval filtering if requested
-        if time_interval > 0:
-            # Convert minutes to seconds for comparison
-            interval_seconds = time_interval * 60
         
+        if time_interval > 0:
+            interval_seconds = time_interval * 60
             filtered_data = []
             last_timestamp = None
-        
-            for item in queryset:
+            data_list = list(queryset)
+            for item in data_list:
                 if last_timestamp is None:
                     filtered_data.append(item)
                     last_timestamp = item.timestamp
@@ -109,54 +223,39 @@ class WaterQualityDataViewSet(viewsets.ModelViewSet):
                     if time_diff >= interval_seconds:
                         filtered_data.append(item)
                         last_timestamp = item.timestamp
-        
             queryset = filtered_data
-    
+        
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
 class UserViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = User.objects.all()
+    queryset = CustomUser.objects.all()
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-
-def custom_logout(request):
-    logout(request)
-    return redirect('login')
-
+@login_required
 def logout_confirm(request):
     if request.method == 'POST':
-        if 'confirm' in request.POST:  # If "Yes" was clicked
+        if 'confirm' in request.POST:
             logout(request)
             return redirect('login')
-        else:  # If "No" was clicked
-            return redirect('dashboard')
+        return redirect('dashboard')
     return render(request, 'monitoring_app/logout_confirm.html')
-# Web views
-@login_required
-def dashboard(request):
-    users = User.objects.all()
-    return render(request, 'monitoring_app/dashboard.html', {'users': users})
 
 @login_required
 def live_status(request, user_id):
-    try:
-        user = User.objects.get(id=user_id)
-        latest_data = WaterQualityData.objects.filter(user=user).order_by('-timestamp').first()
-        all_data = WaterQualityData.objects.filter(user=user).order_by('-timestamp')[:50]  # Show last 50 entries
-        
-        return render(request, 'monitoring_app/live_status.html', {
-            'user': user,
-            'latest_data': latest_data,
-            'all_data': all_data
-        })
-    except User.DoesNotExist:
-        return redirect('dashboard')
+    user = get_object_or_404(User, id=user_id)
+    latest_data = WaterQualityData.objects.filter(user=user).order_by('-timestamp').first()
+    all_data = WaterQualityData.objects.filter(user=user).order_by('-timestamp')[:50]
+    return render(request, 'monitoring_app/live_status.html', {
+        'user': user,
+        'latest_data': latest_data,
+        'all_data': all_data
+    })
 
 @login_required
 def download_page(request, user_id):
-    user = User.objects.get(id=user_id)
+    user = get_object_or_404(User, id=user_id)
     return render(request, 'monitoring_app/download.html', {'user': user})
 
 @login_required
@@ -166,8 +265,10 @@ def add_data(request):
 
 @login_required
 def data_entry(request):
-    users = User.objects.all()
-    return render(request, 'monitoring_app/data_entry.html', {'users': users})
+    if request.user.is_admin:
+        users = User.objects.all()
+        return render(request, 'monitoring_app/data_entry.html', {'users': users})
+    return redirect('dashboard')
 
 @login_required
 def user_list(request):
@@ -179,20 +280,33 @@ def user_list(request):
 def water_quality_data(request):
     user_id = request.GET.get('user_id')
     limit = request.GET.get('limit', 20)
-    
     queryset = WaterQualityData.objects.all()
     if user_id:
         queryset = queryset.filter(user_id=user_id)
-    
     queryset = queryset.order_by('-timestamp')[:int(limit)]
-    data = list(queryset.values('id', 'user_id', 'timestamp', 'ph', 'flow', 'daily_flow','total_flow', 'cod', 'bod', 'tss',  'date'))
-    
+    data = list(queryset.values('id', 'user_id', 'timestamp', 'ph', 'flow', 'daily_flow', 'total_flow', 'cod', 'bod', 'tss', 'date'))
+    # Convert data for JSON serialization and ensure daily_flow is present
+    for item in data:
+        if item['daily_flow'] is None:
+            item['daily_flow'] = 0.0
+        # Convert dates to ISO format string
+        if 'timestamp' in item and item['timestamp']:
+            item['timestamp'] = item['timestamp'].isoformat()
+        if 'date' in item and item['date']:
+            item['date'] = item['date'].isoformat()
     return JsonResponse(data, safe=False)
+
+def custom_logout(request):
+    logout(request)
+    return redirect('login')
 
 @login_required
 def download_data(request, user_id):
     if request.method == 'POST':
         try:
+            # Print POST data for debugging
+            logger.debug(f"Download POST data: {request.POST}")
+            
             user = User.objects.get(id=user_id)
             start_date_str = request.POST.get('start_date')
             end_date_str = request.POST.get('end_date')
@@ -212,15 +326,11 @@ def download_data(request, user_id):
                 date__lte=end_date
             ).order_by('timestamp')
             
-            # Apply time interval filtering if requested
             if time_interval > 0:
                 interval_seconds = time_interval * 60
                 filtered_data = []
                 last_timestamp = None
-                
-                # Evaluate the queryset to a list to avoid multiple DB hits
                 data_list = list(queryset)
-                
                 for item in data_list:
                     if last_timestamp is None:
                         filtered_data.append(item)
@@ -230,44 +340,30 @@ def download_data(request, user_id):
                         if time_diff >= interval_seconds:
                             filtered_data.append(item)
                             last_timestamp = item.timestamp
-                
-                # Use the filtered data
                 data = filtered_data
             else:
                 data = list(queryset)
             
-            # Get selected fields
-            fields = []
-            for field in ['ph', 'flow', 'daily_flow', 'total_flow', 'cod', 'bod', 'tss']:
-                if request.POST.get(field):
-                    fields.append(field)
+            fields = [field for field in ['ph', 'flow', 'daily_flow', 'total_flow', 'cod', 'bod', 'tss'] if request.POST.get(field)]
+            logger.debug(f"Selected fields: {fields}")
             
             if not fields:
                 messages.error(request, "Please select at least one parameter")
                 return redirect('download_page', user_id=user_id)
             
-            # Create the response based on the file format
             if file_format == 'excel':
                 import openpyxl
                 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
                 
-                # Create a workbook and select the active worksheet
                 wb = openpyxl.Workbook()
                 ws = wb.active
-                ws.title = "WATER QUALITY OF DATA"
+                ws.title = "Water Quality Data"
                 
-                # Style configurations
                 header_font = Font(bold=True, color="FFFFFF")
                 header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
                 centered_alignment = Alignment(horizontal="center", vertical="center")
-                border = Border(
-                    left=Side(border_style="thin", color="000000"),
-                    right=Side(border_style="thin", color="000000"),
-                    top=Side(border_style="thin", color="000000"),
-                    bottom=Side(border_style="thin", color="000000")
-                )
+                border = Border(left=Side(style="thin"), right=Side(style="thin"), top=Side(style="thin"), bottom=Side(style="thin"))
                 
-                # Add header row
                 header = ['Date', 'Time'] + [field.upper() for field in fields]
                 for col_num, column_title in enumerate(header, 1):
                     cell = ws.cell(row=1, column=col_num, value=column_title)
@@ -275,116 +371,78 @@ def download_data(request, user_id):
                     cell.fill = header_fill
                     cell.alignment = centered_alignment
                     cell.border = border
-                    
-                    # Adjust column width to fit content
                     ws.column_dimensions[openpyxl.utils.get_column_letter(col_num)].width = max(12, len(column_title) + 4)
                 
-                # Add data rows
                 row_fill = PatternFill(start_color="E9EDF4", end_color="E9EDF4", fill_type="solid")
                 alt_row_fill = PatternFill(start_color="D3DFEE", end_color="D3DFEE", fill_type="solid")
                 
                 for row_num, item in enumerate(data, 2):
-                    # Apply alternating row colors
                     row_color = row_fill if row_num % 2 == 0 else alt_row_fill
-                    
-                    # Date column
                     date_cell = ws.cell(row=row_num, column=1, value=item.date.strftime('%Y-%m-%d'))
                     date_cell.alignment = centered_alignment
                     date_cell.border = border
                     date_cell.fill = row_color
                     
-                    # Time column
                     localized_timestamp = timezone.localtime(item.timestamp)
-                    time_string = localized_timestamp.strftime('%H:%M:%S')
-                    time_cell = ws.cell(row=row_num, column=2, value=time_string)
+                    time_cell = ws.cell(row=row_num, column=2, value=localized_timestamp.strftime('%H:%M:%S'))
                     time_cell.alignment = centered_alignment
                     time_cell.border = border
                     time_cell.fill = row_color
-                    time_cell.number_format = '@'  # Text format
+                    time_cell.number_format = '@'
                     
-                    # Data columns
-
-
-                    # Add data rows in the Excel generation section
                     for col_num, field in enumerate(fields, 3):
                         value = getattr(item, field)
-    
-                        # Format daily_flow and total_flow to 2 decimal places
-                        if field in ['daily_flow', 'total_flow'] and value is not None:
+                        if value is None:
+                            value = 0.0  # Set default value if None
+                        if field in ['daily_flow', 'total_flow', 'ph', 'flow', 'cod', 'bod', 'tss'] and value is not None:
                             value = round(value, 2)
-        
                         cell = ws.cell(row=row_num, column=col_num, value=value)
                         cell.alignment = centered_alignment
                         cell.border = border
                         cell.fill = row_color
-    
-                        # Set number format for decimal fields
                         if field in ['daily_flow', 'total_flow', 'ph', 'flow', 'cod', 'bod', 'tss']:
                             cell.number_format = '0.00'
                 
-                # Create the response
-                response = HttpResponse(
-                    content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-                )
+                response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
                 response['Content-Disposition'] = f'attachment; filename="water_quality_data_{start_date}_to_{end_date}.xlsx"'
-                
-                # Save the workbook to the response
                 wb.save(response)
-                
                 return response
             
             elif file_format == 'pdf':
-                from reportlab.pdfgen import canvas
-                from reportlab.lib.pagesizes import letter
                 from reportlab.lib import colors
                 from reportlab.lib.colors import HexColor
-                from reportlab.platypus import Table, TableStyle, SimpleDocTemplate, Paragraph, Spacer
-                from reportlab.lib.styles import getSampleStyleSheet
                 from reportlab.lib.units import inch
-    
+                
                 response = HttpResponse(content_type='application/pdf')
                 response['Content-Disposition'] = f'attachment; filename="water_quality_data_{start_date}_to_{end_date}.pdf"'
-    
-                buffer = io.BytesIO()
-    
-                # Use SimpleDocTemplate to handle pagination automatically
-                doc = SimpleDocTemplate(buffer, pagesize=letter, 
-                           rightMargin=0.5*inch, leftMargin=0.5*inch,
-                           topMargin=0.75*inch, bottomMargin=0.75*inch)
-    
-                # Create elements list to build document
+                
+                buffer = BytesIO()
+                doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=0.5*inch, leftMargin=0.5*inch, topMargin=0.75*inch, bottomMargin=0.75*inch)
                 elements = []
-    
-                # Add title and date range
+                
                 styles = getSampleStyleSheet()
-                title = Paragraph(f"Water Quality Data for {user.username}", styles['Title'])
-                date_range = Paragraph(f"Date Range: {start_date} to {end_date}", styles['Normal'])
-                elements.append(title)
-                elements.append(date_range)
+                elements.append(Paragraph(f"Water Quality Data for {user.username}", styles['Title']))
+                elements.append(Paragraph(f"Date Range: {start_date} to {end_date}", styles['Normal']))
                 elements.append(Spacer(1, 0.25*inch))
-    
-                # Create the table data
+                
                 table_data = [['Date', 'Time'] + [field.upper() for field in fields]]
-    
-
-                # Add data rows for PDF
                 for item in data:
                     localized_timestamp = timezone.localtime(item.timestamp)
                     row = [item.date.strftime('%Y-%m-%d'), localized_timestamp.strftime('%H:%M:%S')]
                     for field in fields:
                         value = getattr(item, field)
-                        # Format daily_flow and total_flow to 2 decimal places
-                        if field in ['daily_flow', 'total_flow'] and value is not None:
+                        if value is None:
+                            value = 0.0  # Set default value if None
+                        if field in ['daily_flow', 'total_flow', 'ph', 'flow', 'cod', 'bod', 'tss'] and value is not None:
                             value = f"{value:.2f}"
                         else:
                             value = str(value)
                         row.append(value)
                     table_data.append(row)
-    
-                # Create the table with some auto-width
-                table = Table(table_data, repeatRows=1)  # repeatRows=1 makes header repeat on each page
+                
+                table = Table(table_data, repeatRows=1)
                 table.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, 0), HexColor('#0096FF')),  # Custom blue color
+                    ('BACKGROUND', (0, 0), (-1, 0), HexColor('#0096FF')),
                     ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
                     ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                     ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
@@ -393,16 +451,13 @@ def download_data(request, user_id):
                     ('GRID', (0, 0), (-1, -1), 1, colors.black),
                     ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                 ]))
-    
+                
                 elements.append(table)
-    
-                # Build the document with all elements
                 doc.build(elements)
-    
+                
                 pdf = buffer.getvalue()
                 buffer.close()
                 response.write(pdf)
-    
                 return response
             
         except User.DoesNotExist:
@@ -412,42 +467,33 @@ def download_data(request, user_id):
             messages.error(request, f"Invalid date format: {str(e)}")
             return redirect('download_page', user_id=user_id)
         except Exception as e:
+            logger.error(f"Error downloading data: {str(e)}")
             messages.error(request, f"An error occurred: {str(e)}")
             return redirect('download_page', user_id=user_id)
     
     return redirect('download_page', user_id=user_id)
+
 @login_required
 def submit_data(request):
     if request.method == 'POST':
         user_id = request.POST.get('user_id')
-        
         try:
             user = User.objects.get(id=user_id)
-            
-            # Get data from form (use None for empty fields)
             ph = request.POST.get('ph', '') or None
             flow = request.POST.get('flow', '') or None
             cod = request.POST.get('cod', '') or None
             bod = request.POST.get('bod', '') or None
             tss = request.POST.get('tss', '') or None
             
-            # Convert to float for non-None values
-            ph = float(ph) if ph is not None else None
-            flow = float(flow) if flow is not None else None
-            cod = float(cod) if cod is not None else None
-            bod = float(bod) if bod is not None else None
-            tss = float(tss) if tss is not None else None
+            ph = float(ph) if ph else None
+            flow = float(flow) if flow else None
+            cod = float(cod) if cod else None
+            bod = float(bod) if bod else None
+            tss = float(tss) if tss else None
             
-            # Calculate total_flow automatically
             latest_record = WaterQualityData.objects.filter(user=user).order_by('-timestamp').first()
-            if latest_record and flow is not None:
-                total_flow = latest_record.total_flow + flow
-            elif flow is not None:
-                total_flow = flow
-            else:
-                total_flow = 0
+            total_flow = (latest_record.total_flow + flow) if latest_record and flow else (flow or 0)
             
-            # Create new record with non-null values
             new_data = WaterQualityData(
                 user=user,
                 ph=ph if ph is not None else 0,
@@ -457,14 +503,10 @@ def submit_data(request):
                 bod=bod if bod is not None else 0,
                 tss=tss if tss is not None else 0
             )
-            
             new_data.save()
-            
             return JsonResponse({'success': True})
         except User.DoesNotExist:
             return JsonResponse({'success': False, 'error': 'User not found'})
         except ValueError as e:
             return JsonResponse({'success': False, 'error': str(e)})
-    
     return JsonResponse({'success': False, 'error': 'Invalid request method'})
-

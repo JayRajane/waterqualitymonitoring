@@ -1,0 +1,18 @@
+{% extends 'monitoring_app/base.html' %}
+
+{% block content %}
+<div class="sliding-header">
+    <h1>Confirm Delete User</h1>
+    <p>Are you sure you want to delete {{ user.username }}?</p>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger">Yes, Delete</button>
+            <a href="{% url 'user_management' %}" class="btn btn-secondary">Cancel</a>
+        </form>
+    </div>
+</div>
+{% endblock %}
