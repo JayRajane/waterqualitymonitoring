@@ -3,7 +3,7 @@
 {% block content %}
 <div class="sliding-header">
     <h1>Download Data for {{ user.username }}</h1>
-    <p>Export historical water quality data</p>
+    <p>Export historical Data</p>
 </div>
 
 <div class="row mb-4">
@@ -37,6 +37,7 @@
                                 <option value="15">15 minutes</option>
                                 <option value="30">30 minutes</option>
                                 <option value="60">1 hour</option>
+                                <option value="1439">24 hour</option>
                             </select>
                         </div>
                     </div>
@@ -246,6 +247,8 @@ $('#view-data-btn').click(function() {
             
             console.log("API Response Data:", data);  // Debug log
             
+            data.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
             // Clear previous preview
             $('#preview-head tr').empty();
             $('#preview-body').empty();

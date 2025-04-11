@@ -404,7 +404,7 @@ def download_data(request, user_id):
                             cell.number_format = '0.00'
                 
                 response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-                response['Content-Disposition'] = f'attachment; filename="water_quality_data_{start_date}_to_{end_date}.xlsx"'
+                response['Content-Disposition'] = f'attachment; filename="Datasheet_{start_date}_to_{end_date}.xlsx"'
                 wb.save(response)
                 return response
             
@@ -414,14 +414,14 @@ def download_data(request, user_id):
                 from reportlab.lib.units import inch
                 
                 response = HttpResponse(content_type='application/pdf')
-                response['Content-Disposition'] = f'attachment; filename="water_quality_data_{start_date}_to_{end_date}.pdf"'
+                response['Content-Disposition'] = f'attachment; filename="Datasheet_{start_date}_to_{end_date}.pdf"'
                 
                 buffer = BytesIO()
                 doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=0.5*inch, leftMargin=0.5*inch, topMargin=0.75*inch, bottomMargin=0.75*inch)
                 elements = []
                 
                 styles = getSampleStyleSheet()
-                elements.append(Paragraph(f"Water Quality Data for {user.username}", styles['Title']))
+                elements.append(Paragraph(f"Datasheet for {user.username}", styles['Title']))
                 elements.append(Paragraph(f"Date Range: {start_date} to {end_date}", styles['Normal']))
                 elements.append(Spacer(1, 0.25*inch))
                 
