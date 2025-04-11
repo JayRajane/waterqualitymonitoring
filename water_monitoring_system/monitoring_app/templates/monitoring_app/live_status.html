@@ -8,12 +8,24 @@
 </div>
 
 <div class="row text-center">
+    {% if user.show_ph %}
     <div class="col-md-4 mb-3"><div class="data-card"><h3>pH</h3><p id="phValue">-</p></div></div>
+    {% endif %}
+    {% if user.show_flow %}
     <div class="col-md-4 mb-3"><div class="data-card"><h3>Flow</h3><p id="flowValue">-</p></div></div>
+    {% endif %}
+    {% if user.show_daily_flow %}
     <div class="col-md-4 mb-3"><div class="data-card"><h3>Daily Flow</h3><p id="dailyFlowValue">-</p></div></div>
+    {% endif %}
+    {% if user.show_cod %}
     <div class="col-md-4 mb-3"><div class="data-card"><h3>COD</h3><p id="codValue">-</p></div></div>
+    {% endif %}
+    {% if user.show_bod %}
     <div class="col-md-4 mb-3"><div class="data-card"><h3>BOD</h3><p id="bodValue">-</p></div></div>
+    {% endif %}
+    {% if user.show_tss %}
     <div class="col-md-4 mb-3"><div class="data-card"><h3>TSS</h3><p id="tssValue">-</p></div></div>
+    {% endif %}
 </div>
 
 <div class="row mt-4">
@@ -28,13 +40,13 @@
                         <thead>
                             <tr>
                                 <th>Date/Time</th>
-                                <th>pH</th>
-                                <th>Flow (L/min)</th>
-                                <th>Daily Flow (L)</th>
-                                <th>Total Flow (L) </th>
-                                <th>COD (mg/L)</th>
-                                <th>BOD (mg/L)</th>
-                                <th>TSS (mg/L)</th>
+                                {% if user.show_ph %}<th>pH</th>{% endif %}
+                                {% if user.show_flow %}<th>Flow (L/min)</th>{% endif %}
+                                {% if user.show_daily_flow %}<th>Daily Flow (L)</th>{% endif %}
+                                {% if user.show_total_flow %}<th>Total Flow (L)</th>{% endif %}
+                                {% if user.show_cod %}<th>COD (mg/L)</th>{% endif %}
+                                {% if user.show_bod %}<th>BOD (mg/L)</th>{% endif %}
+                                {% if user.show_tss %}<th>TSS (mg/L)</th>{% endif %}
                             </tr>
                         </thead>
                         <tbody id="history-body">
@@ -58,8 +70,10 @@
     const userId = {{ user.id }};
     let lastDataTimestamp = null;
     let dailyFlowCache = {};
+
     
     // Format a value with units, handling null values
+
     function formatValue(value, unit = '', nullText = '-', forceDecimals = false) {
         if (value === null || value === undefined || value === '') {
             return nullText;
@@ -163,6 +177,7 @@
     }
     
     // Fetch historical data
+// Update the fetchHistoricalData function
     function fetchHistoricalData() {
         $.ajax({
             url: `/api/water-quality/?user_id=${userId}&limit=20`,
@@ -180,16 +195,21 @@
                     // Calculate daily flow if needed
                     const dailyFlow = item.daily_flow !== null ? item.daily_flow : getDailyFlow(item, data);
                     
-                    rows += `<tr>
-                        <td>${date.toLocaleString()}</td>
-                        <td>${formatValue(item.ph)}</td>
-                        <td>${formatValue(item.flow, 'L/min', '-', true)}</td>
-                        <td>${formatValue(dailyFlow, 'L', '-', true)}</td>
-                        <td>${formatValue(item.total_flow, 'L', '-', true)}</td>
-                        <td>${formatValue(item.cod, 'mg/L')}</td>
-                        <td>${formatValue(item.bod, 'mg/L')}</td>
-                        <td>${formatValue(item.tss, 'mg/L')}</td>
-                    </tr>`;
+                    // Start row with date/time
+                    let row = `<tr><td>${date.toLocaleString()}</td>`;
+                    
+                    // Add selected parameters
+                    {% if user.show_ph %}row += `<td>${formatValue(item.ph)}</td>`;{% endif %}
+                    {% if user.show_flow %}row += `<td>${formatValue(item.flow, 'L/min', '-', true)}</td>`;{% endif %}
+                    {% if user.show_daily_flow %}row += `<td>${formatValue(dailyFlow, 'L', '-', true)}</td>`;{% endif %}
+                    {% if user.show_total_flow %}row += `<td>${formatValue(item.total_flow, 'L', '-', true)}</td>`;{% endif %}
+                    {% if user.show_cod %}row += `<td>${formatValue(item.cod, 'mg/L')}</td>`;{% endif %}
+                    {% if user.show_bod %}row += `<td>${formatValue(item.bod, 'mg/L')}</td>`;{% endif %}
+                    {% if user.show_tss %}row += `<td>${formatValue(item.tss, 'mg/L')}</td>`;{% endif %}
+                    
+                    // Close row
+                    row += `</tr>`;
+                    rows += row;
                 });
                 $('#history-body').html(rows);
             },
@@ -217,6 +237,17 @@
                 }
             }
         });
+    }
+
+    // Update the updateDisplay function to only update visible elements
+    function updateDisplay(data) {
+        if ($('#phValue').length) $('#last-ph').text(data.ph);
+        if ($('#flowValue').length) $('#last-flow').text(data.flow);
+        if ($('#codValue').length) $('#last-cod').text(data.cod);
+        if ($('#bodValue').length) $('#last-bod').text(data.bod);
+        if ($('#tssValue').length) $('#last-tss').text(data.tss);
+        if ($('#dailyFlowValue').length) $('#dailyFlowValue').text(formatValue(data.daily_flow, 'L', '-', true));
+        if ($('#totalFlowValue').length) $('#totalFlowValue').text(formatValue(data.total_flow, 'L', '-', true));
     }
     
     // Reset daily flow cache at midnight

@@ -25,7 +25,21 @@ class CustomUser(AbstractUser):
     is_verified = models.BooleanField(default=False)
     verification_token = models.UUIDField(default=uuid.uuid4, editable=False)
     
+    # Add fields for parameter selection
+    show_ph = models.BooleanField(default=True)
+    show_flow = models.BooleanField(default=True)
+    show_cod = models.BooleanField(default=True)
+    show_bod = models.BooleanField(default=True)
+    show_tss = models.BooleanField(default=True)
+    show_daily_flow = models.BooleanField(default=True)
+    show_total_flow = models.BooleanField(default=True)
+    
     def save(self, *args, **kwargs):
+        # If flow is selected, automatically select daily_flow and total_flow
+        if self.show_flow:
+            self.show_daily_flow = True
+            self.show_total_flow = True
+            
         if not self.pk:  # Only on creation
             self.set_password(f"{self.username}@123")
             if self.role == self.ADMIN:

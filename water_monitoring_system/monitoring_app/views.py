@@ -183,6 +183,25 @@ class WaterQualityDataViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(latest_data)
         return Response(serializer.data)
     
+
+    
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        user_id = self.request.query_params.get('user_id')
+        if user_id:
+            try:
+                user = CustomUser.objects.get(id=user_id)
+                context['show_ph'] = user.show_ph
+                context['show_flow'] = user.show_flow
+                context['show_daily_flow'] = user.show_daily_flow
+                context['show_total_flow'] = user.show_total_flow
+                context['show_cod'] = user.show_cod
+                context['show_bod'] = user.show_bod
+                context['show_tss'] = user.show_tss
+            except CustomUser.DoesNotExist:
+                pass
+        return context
+    
     @action(detail=False, methods=['get'])
     def date_range(self, request):
         user_id = request.query_params.get('user_id')
