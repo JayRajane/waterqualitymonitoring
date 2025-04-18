@@ -1,4 +1,3 @@
-# serializers.py
 from rest_framework import serializers
 from .models import WaterQualityData, CustomUser
 
@@ -13,20 +12,20 @@ class WaterQualityDataSerializer(serializers.ModelSerializer):
     class Meta:
         model = WaterQualityData
         fields = ['id', 'user', 'username', 'timestamp', 'ph', 'flow', 'total_flow', 
-                  'cod', 'bod', 'tss', 'daily_flow', 'date']
-        read_only_fields = ['daily_flow', 'date']
+                  'cod', 'bod', 'tss', 'daily_flow', 'monthly_flow', 'date']
+        read_only_fields = ['daily_flow', 'monthly_flow', 'date']
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         context = kwargs.get('context', {})
-        
-        # Remove fields based on user preferences
         if not context.get('show_ph', True):
             self.fields.pop('ph')
         if not context.get('show_flow', True):
             self.fields.pop('flow')
         if not context.get('show_daily_flow', True):
             self.fields.pop('daily_flow')
+        if not context.get('show_monthly_flow', True):
+            self.fields.pop('monthly_flow')
         if not context.get('show_total_flow', True):
             self.fields.pop('total_flow')
         if not context.get('show_cod', True):

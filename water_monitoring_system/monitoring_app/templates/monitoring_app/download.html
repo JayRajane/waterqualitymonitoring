@@ -65,6 +65,12 @@
                             </div>
                             <div class="col-md-3">
                                 <div class="form-check">
+                                    <input class="form-check-input parameter-checkbox" type="checkbox" id="monthly_flow" name="monthly_flow" value="1">
+                                    <label class="form-check-label" for="monthly_flow">Monthly Flow</label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-check">
                                     <input class="form-check-input parameter-checkbox" type="checkbox" id="cod" name="cod" value="1">
                                     <label class="form-check-label" for="cod">COD</label>
                                 </div>
@@ -89,7 +95,7 @@
                             </div>
                             <div class="col-md-3">
                                 <div class="form-check">
-                                    <input class="form-check-input parameter-checkbox" type="checkbox" id="select_all" name="select_all">
+                                    <input class="form-check-input" type="checkbox" id="select_all" name="select_all">
                                     <label class="form-check-label" for="select_all"><strong>Select All</strong></label>
                                 </div>
                             </div>
@@ -156,7 +162,6 @@
             const endDate = new Date($('#end_date').val());
             
             if (startDate && endDate) {
-                // Calculate the difference in days
                 const diffTime = Math.abs(endDate - startDate);
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                 
@@ -178,128 +183,117 @@
         
         // Select all checkbox
         $('#select_all').change(function() {
-            $('.parameter-checkbox').prop('checked', $(this).prop('checked'));
+            console.log('Select All toggled:', $(this).prop('checked')); // Debug
+            $('.parameter-checkbox').not('#select_all').prop('checked', $(this).prop('checked'));
             updateDownloadButton();
         });
         
-        $('.parameter-checkbox').change(function() {
+        $('.parameter-checkbox').not('#select_all').change(function() {
+            console.log('Parameter checkbox changed:', $(this).attr('id'), $(this).prop('checked')); // Debug
             updateDownloadButton();
-            // Uncheck "select all" if any checkbox is unchecked
-            if (!$(this).prop('checked')) {
-                $('#select_all').prop('checked', false);
-            }
-            // Check "select all" if all checkboxes are checked
-            else if ($('.parameter-checkbox:checked').length === $('.parameter-checkbox').length - 1) {
-                $('#select_all').prop('checked', true);
-            }
+            const allChecked = $('.parameter-checkbox').not('#select_all').length === $('.parameter-checkbox:checked').not('#select_all').length;
+            $('#select_all').prop('checked', allChecked);
         });
         
         function updateDownloadButton() {
-            const hasParameters = $('.parameter-checkbox:checked').length > 0;
+            const hasParameters = $('.parameter-checkbox:checked').not('#select_all').length > 0;
             const hasDateRange = $('#start_date').val() && $('#end_date').val();
-            
+            console.log('Update Download Button:', { hasParameters, hasDateRange }); // Debug
             $('#download-btn').prop('disabled', !(hasParameters && hasDateRange));
         }
         
         // Update button state when form changes
-        $('#download-form input').change(updateDownloadButton);
+        $('#download-form input, #download-form select').change(updateDownloadButton);
         
         // View data button
-// Modify the view-data-btn click handler
-$('#view-data-btn').click(function() {
-    if (!$('#start_date').val() || !$('#end_date').val()) {
-        alert("Please select a date range.");
-        return;
-    }
-    
-    if (!validateDateRange()) {
-        return;
-    }
-    
-    const userId = {{ user.id }};
-    const startDate = $('#start_date').val();
-    const endDate = $('#end_date').val();
-    const timeInterval = $('#time_interval').val();
-    
-    // Get selected parameters
-    const selectedParams = [];
-    $('.parameter-checkbox:checked').each(function() {
-        const paramName = $(this).attr('id');
-        if (paramName !== 'select_all') {
-            selectedParams.push(paramName);
-        }
-    });
-    
-    if (selectedParams.length === 0) {
-        alert("Please select at least one parameter.");
-        return;
-    }
-    
-    // Fetch data for preview
-    $.ajax({
-        url: `/api/water-quality/date_range/?user_id=${userId}&start_date=${startDate}&end_date=${endDate}&time_interval=${timeInterval}`,
-        method: 'GET',
-        success: function(data) {
-            if (data.length === 0) {
-                alert("No data found for the selected date range.");
+        $('#view-data-btn').click(function() {
+            console.log('View Data button clicked'); // Debug
+            if (!$('#start_date').val() || !$('#end_date').val()) {
+                alert("Please select a date range.");
                 return;
             }
             
-            console.log("API Response Data:", data);  // Debug log
+            if (!validateDateRange()) {
+                return;
+            }
             
-            data.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
-            // Clear previous preview
-            $('#preview-head tr').empty();
-            $('#preview-body').empty();
+            const userId = {{ user.id }};
+            const startDate = $('#start_date').val();
+            const endDate = $('#end_date').val();
+            const timeInterval = $('#time_interval').val();
             
-            // Add headers
-            $('#preview-head tr').append('<th>Date</th><th>Time</th>');
-            selectedParams.forEach(param => {
-                $('#preview-head tr').append(`<th>${param.toUpperCase()}</th>`);
+            // Get selected parameters
+            const selectedParams = [];
+            $('.parameter-checkbox:checked').not('#select_all').each(function() {
+                selectedParams.push($(this).attr('id'));
             });
             
-            // Add data rows
-            data.forEach(item => {
-                const row = $('<tr>');
-                const date = new Date(item.timestamp);
-                row.append(`<td>${date.toISOString().split('T')[0]}</td>`);
-                row.append(`<td>${date.toTimeString().split(' ')[0]}</td>`);
-                
-                selectedParams.forEach(param => {
-                    // Handle daily_flow specifically
-                    if (param === 'daily_flow' && item.daily_flow === null) {
-                        // Calculate daily_flow if it's null
-                        const dailyFlow = item.flow || 0; // Or implement your calculation logic here
-                        row.append(`<td>${dailyFlow.toFixed(2)}</td>`);
-                    } else {
-                        // Format numbers with 2 decimal places for numeric values
-                        const value = item[param];
-                        if (value !== undefined && value !== null) {
-                            if (['daily_flow', 'total_flow', 'ph', 'flow', 'cod', 'bod', 'tss'].includes(param)) {
+            console.log('Selected Parameters:', selectedParams); // Debug
+            if (selectedParams.length === 0) {
+                alert("Please select at least one parameter.");
+                return;
+            }
+            
+            // Fetch data for preview
+            $.ajax({
+                url: `/api/water-quality/date_range/?user_id=${userId}&start_date=${startDate}&end_date=${endDate}&time_interval=${timeInterval}`,
+                method: 'GET',
+                success: function(data) {
+                    console.log('API Response:', data); // Debug
+                    if (data.length === 0) {
+                        alert("No data found for the selected date range.");
+                        $('#preview-container').hide();
+                        return;
+                    }
+                    
+                    // Sort data by timestamp (descending)
+                    data.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                    
+                    // Clear previous preview
+                    $('#preview-head tr').empty();
+                    $('#preview-body').empty();
+                    
+                    // Add headers
+                    $('#preview-head tr').append('<th>Date</th><th>Time</th>');
+                    selectedParams.forEach(param => {
+                        $('#preview-head tr').append(`<th>${param.toUpperCase()}</th>`);
+                    });
+                    
+                    // Add data rows
+                    data.forEach(item => {
+                        console.log('Processing item:', item); // Debug
+                        const row = $('<tr></tr>');
+                        const timestamp = new Date(item.timestamp);
+                        const dateStr = timestamp.toISOString().split('T')[0];
+                        const timeStr = timestamp.toTimeString().split(' ')[0];
+                        row.append(`<td>${dateStr}</td>`);
+                        row.append(`<td>${timeStr}</td>`);
+                        
+                        selectedParams.forEach(param => {
+                            let value = item[param];
+                            if (value === null || value === undefined) {
+                                value = 0.0;
+                            }
+                            if (['daily_flow', 'monthly_flow', 'total_flow', 'ph', 'flow', 'cod', 'bod', 'tss'].includes(param)) {
                                 row.append(`<td>${parseFloat(value).toFixed(2)}</td>`);
                             } else {
                                 row.append(`<td>${value}</td>`);
                             }
-                        } else {
-                            row.append(`<td>0.00</td>`);  // Default to 0.00 for missing values
-                        }
-                    }
-                });
-                
-                $('#preview-body').append(row);
+                        });
+                        
+                        $('#preview-body').append(row);
+                    });
+                    
+                    // Show preview
+                    $('#preview-container').show();
+                    $('#download-btn').prop('disabled', false);
+                },
+                error: function(xhr, status, error) {
+                    console.error('API Error:', xhr.responseText, status, error); // Debug
+                    alert("Error fetching data: " + (xhr.responseJSON?.error || error));
+                }
             });
-            
-            // Show preview
-            $('#preview-container').show();
-            $('#download-btn').prop('disabled', false);
-        },
-        error: function(xhr, status, error) {
-            console.error("API Error:", xhr.responseText);  // Debug log
-            alert("Error fetching data: " + error);
-        }
-    });
-});
+        });
     });
 </script>
-{% endblock %}                  
+{% endblock %}

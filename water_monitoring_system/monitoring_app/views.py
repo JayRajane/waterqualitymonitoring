@@ -59,7 +59,7 @@ def add_user(request):
                 user.set_password(password)
                 user.save()
                 messages.success(request, f'User {user.username} created successfully!')
-                return redirect('user_management')  # Ensure this redirects correctly
+                return redirect('user_management')
             except Exception as e:
                 logger.error(f"Error saving user: {e}")
                 messages.error(request, f"Error creating user: {str(e)}")
@@ -76,7 +76,7 @@ def add_user(request):
 def delete_user(request, user_id):
     user = get_object_or_404(CustomUser, id=user_id)
     if request.method == 'POST':
-        if user != request.user:  # Prevent self-deletion
+        if user != request.user:
             user.delete()
             messages.success(request, f'User {user.username} deleted successfully!')
         else:
@@ -103,9 +103,6 @@ def edit_user(request, user_id):
 @login_required
 @user_passes_test(is_admin)
 def download_user_credentials(request, user_id):
-    """
-    View for downloading user credentials as PDF.
-    """
     user = get_object_or_404(CustomUser, id=user_id)
     return generate_user_pdf(user)
 
@@ -120,7 +117,7 @@ def generate_user_pdf(user):
     
     user_data = [
         ['Username', user.username],
-        ['Password', f"{user.username}@123"],  # Default password format
+        ['Password', f"{user.username}@123"],
         ['Email', user.email],
         ['Role', user.get_role_display()],
         ['First Name', user.first_name],
@@ -183,8 +180,6 @@ class WaterQualityDataViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(latest_data)
         return Response(serializer.data)
     
-
-    
     def get_serializer_context(self):
         context = super().get_serializer_context()
         user_id = self.request.query_params.get('user_id')
@@ -194,6 +189,7 @@ class WaterQualityDataViewSet(viewsets.ModelViewSet):
                 context['show_ph'] = user.show_ph
                 context['show_flow'] = user.show_flow
                 context['show_daily_flow'] = user.show_daily_flow
+                context['show_monthly_flow'] = user.show_monthly_flow
                 context['show_total_flow'] = user.show_total_flow
                 context['show_cod'] = user.show_cod
                 context['show_bod'] = user.show_bod
@@ -303,11 +299,15 @@ def water_quality_data(request):
     if user_id:
         queryset = queryset.filter(user_id=user_id)
     queryset = queryset.order_by('-timestamp')[:int(limit)]
-    data = list(queryset.values('id', 'user_id', 'timestamp', 'ph', 'flow', 'daily_flow', 'total_flow', 'cod', 'bod', 'tss', 'date'))
-    # Convert data for JSON serialization and ensure daily_flow is present
+    data = list(queryset.values('id', 'user_id', 'timestamp', 'ph', 'flow', 'daily_flow', 'monthly_flow', 'total_flow', 'cod', 'bod', 'tss', 'date'))
+    # Convert data for JSON serialization and ensure flow fields are present
     for item in data:
         if item['daily_flow'] is None:
             item['daily_flow'] = 0.0
+        if item['monthly_flow'] is None:
+            item['monthly_flow'] = 0.0
+        if item['total_flow'] is None:
+            item['total_flow'] = 0.0
         # Convert dates to ISO format string
         if 'timestamp' in item and item['timestamp']:
             item['timestamp'] = item['timestamp'].isoformat()
@@ -323,7 +323,6 @@ def custom_logout(request):
 def download_data(request, user_id):
     if request.method == 'POST':
         try:
-            # Print POST data for debugging
             logger.debug(f"Download POST data: {request.POST}")
             
             user = User.objects.get(id=user_id)
@@ -363,7 +362,7 @@ def download_data(request, user_id):
             else:
                 data = list(queryset)
             
-            fields = [field for field in ['ph', 'flow', 'daily_flow', 'total_flow', 'cod', 'bod', 'tss'] if request.POST.get(field)]
+            fields = [field for field in ['ph', 'flow', 'daily_flow', 'monthly_flow', 'total_flow', 'cod', 'bod', 'tss'] if request.POST.get(field)]
             logger.debug(f"Selected fields: {fields}")
             
             if not fields:
@@ -390,7 +389,7 @@ def download_data(request, user_id):
                     cell.fill = header_fill
                     cell.alignment = centered_alignment
                     cell.border = border
-                    ws.column_dimensions[openpyxl.utils.get_column_letter(col_num)].width = max(12, len(column_title) + 4)
+                    ws.column_dimensions[ openpyxl.utils.get_column_letter(col_num)].width = max(12, len(column_title) + 4)
                 
                 row_fill = PatternFill(start_color="E9EDF4", end_color="E9EDF4", fill_type="solid")
                 alt_row_fill = PatternFill(start_color="D3DFEE", end_color="D3DFEE", fill_type="solid")
@@ -412,14 +411,14 @@ def download_data(request, user_id):
                     for col_num, field in enumerate(fields, 3):
                         value = getattr(item, field)
                         if value is None:
-                            value = 0.0  # Set default value if None
-                        if field in ['daily_flow', 'total_flow', 'ph', 'flow', 'cod', 'bod', 'tss'] and value is not None:
+                            value = 0.0
+                        if field in ['daily_flow', 'monthly_flow', 'total_flow', 'ph', 'flow', 'cod', 'bod', 'tss'] and value is not None:
                             value = round(value, 2)
                         cell = ws.cell(row=row_num, column=col_num, value=value)
                         cell.alignment = centered_alignment
                         cell.border = border
                         cell.fill = row_color
-                        if field in ['daily_flow', 'total_flow', 'ph', 'flow', 'cod', 'bod', 'tss']:
+                        if field in ['daily_flow', 'monthly_flow', 'total_flow', 'ph', 'flow', 'cod', 'bod', 'tss']:
                             cell.number_format = '0.00'
                 
                 response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
@@ -451,8 +450,8 @@ def download_data(request, user_id):
                     for field in fields:
                         value = getattr(item, field)
                         if value is None:
-                            value = 0.0  # Set default value if None
-                        if field in ['daily_flow', 'total_flow', 'ph', 'flow', 'cod', 'bod', 'tss'] and value is not None:
+                            value = 0.0
+                        if field in ['daily_flow', 'monthly_flow', 'total_flow', 'ph', 'flow', 'cod', 'bod', 'tss'] and value is not None:
                             value = f"{value:.2f}"
                         else:
                             value = str(value)
@@ -520,7 +519,9 @@ def submit_data(request):
                 total_flow=total_flow,
                 cod=cod if cod is not None else 0,
                 bod=bod if bod is not None else 0,
-                tss=tss if tss is not None else 0
+                tss=tss if tss is not None else 0,
+                daily_flow=None,  # Will be calculated in save()
+                monthly_flow=None  # Will be calculated in save()
             )
             new_data.save()
             return JsonResponse({'success': True})

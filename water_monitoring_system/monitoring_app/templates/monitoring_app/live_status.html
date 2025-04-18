@@ -17,6 +17,9 @@
     {% if user.show_daily_flow %}
     <div class="col-md-4 mb-3"><div class="data-card"><h3>Daily Flow</h3><p id="dailyFlowValue">-</p></div></div>
     {% endif %}
+    {% if user.show_monthly_flow %}
+    <div class="col-md-4 mb-3"><div class="data-card"><h3>Monthly Flow</h3><p id="monthlyFlowValue">-</p></div></div>
+    {% endif %}
     {% if user.show_cod %}
     <div class="col-md-4 mb-3"><div class="data-card"><h3>COD</h3><p id="codValue">-</p></div></div>
     {% endif %}
@@ -44,6 +47,7 @@
                                 {% if user.show_flow %}<th>Flow (L/min)</th>{% endif %}
                                 {% if user.show_daily_flow %}<th>Daily Flow (L)</th>{% endif %}
                                 {% if user.show_total_flow %}<th>Total Flow (L)</th>{% endif %}
+                                {% if user.show_monthly_flow %}<th>Monthly Flow (L)</th>{% endif %}
                                 {% if user.show_cod %}<th>COD (mg/L)</th>{% endif %}
                                 {% if user.show_bod %}<th>BOD (mg/L)</th>{% endif %}
                                 {% if user.show_tss %}<th>TSS (mg/L)</th>{% endif %}
@@ -69,76 +73,20 @@
 <script>
     const userId = {{ user.id }};
     let lastDataTimestamp = null;
-    let dailyFlowCache = {};
 
-    
     // Format a value with units, handling null values
-
     function formatValue(value, unit = '', nullText = '-', forceDecimals = false) {
         if (value === null || value === undefined || value === '') {
             return nullText;
         }
         
-        // Convert to number if it's a string
         const numValue = typeof value === 'string' ? parseFloat(value) : value;
         
-        // Format with 2 decimals if requested or for flow/daily flow/total flow
         if (forceDecimals || unit.includes('L/min') || unit.includes('L')) {
             return `${numValue.toFixed(2)} ${unit}`.trim();
         }
         
         return `${numValue} ${unit}`.trim();
-    }
-    
-    // Calculate daily flow based on the date
-    function getDailyFlow(recordData, data) {
-        // Extract the date portion from timestamp
-        const recordDate = new Date(recordData.timestamp).toISOString().split('T')[0];
-        
-        // If we've already calculated this date's flow, return from cache
-        if (dailyFlowCache[recordDate] !== undefined) {
-            return dailyFlowCache[recordDate];
-        }
-        
-        // We need to calculate it - fetch all records for today
-        if (!data || !data.length) {
-            // If no data is provided or if we don't have historical data yet, return the available daily_flow or 0
-            return recordData.daily_flow !== null ? recordData.daily_flow : 0;
-        }
-        
-        // Calculate total flow for the day by summing all flow values for this day
-        let dailyTotal = 0;
-        data.forEach(item => {
-            const itemDate = new Date(item.timestamp).toISOString().split('T')[0];
-            if (itemDate === recordDate && item.flow !== null) {
-                dailyTotal += parseFloat(item.flow);
-            }
-        });
-        
-        // Store in cache
-        dailyFlowCache[recordDate] = dailyTotal;
-        
-        // Return the calculated daily flow
-        return dailyTotal;
-    }
-    
-    // Fetch all historical data for daily flow calculation
-    function fetchAllHistoricalData(callback) {
-        $.ajax({
-            url: `/api/water-quality/?user_id=${userId}&limit=100`,
-            method: 'GET',
-            success: function(data) {
-                if (data.length === 0) {
-                    callback([]);
-                    return;
-                }
-                callback(data);
-            },
-            error: function(error) {
-                console.error("Error fetching historical data for daily flow:", error);
-                callback([]);
-            }
-        });
     }
     
     // Fetch and update the latest data
@@ -147,53 +95,79 @@
             url: `/api/water-quality/latest/?user_id=${userId}`,
             method: 'GET',
             success: function(data) {
-                // Fetch historical data to calculate daily flow
-                fetchAllHistoricalData(function(historicalData) {
-                    // Update the display cards
-                    document.getElementById("phValue").innerText = formatValue(data.ph);
-                    document.getElementById("flowValue").innerText = formatValue(data.flow, 'L/min', '-', true);
-                    
-                    // Calculate and display daily flow from historical data
-                    const dailyFlow = data.daily_flow !== null ? data.daily_flow : getDailyFlow(data, historicalData);
-                    document.getElementById("dailyFlowValue").innerText = formatValue(dailyFlow, 'L', '-', true);
-                    
-                    document.getElementById("codValue").innerText = formatValue(data.cod, 'mg/L');
-                    document.getElementById("bodValue").innerText = formatValue(data.bod, 'mg/L');
-                    document.getElementById("tssValue").innerText = formatValue(data.tss, 'mg/L');
-                    
-                    // Update last updated timestamp
+                console.log('Latest Data:', data); // Debug
+                
+                if (!data || !data.timestamp) {
+                    console.warn('No data or invalid timestamp received'); // Debug
+                    document.getElementById("last-updated").innerText = 'Last updated: No data available';
+                    return;
+                }
+                
+                // Update display cards only if elements exist
+                const phElement = document.getElementById("phValue");
+                if (phElement) phElement.innerText = formatValue(data.ph);
+                
+                const flowElement = document.getElementById("flowValue");
+                if (flowElement) flowElement.innerText = formatValue(data.flow, 'L/min', '-', true);
+                
+                const dailyFlowElement = document.getElementById("dailyFlowValue");
+                if (dailyFlowElement) dailyFlowElement.innerText = formatValue(data.daily_flow, 'L', '-', true);
+                
+                const monthlyFlowElement = document.getElementById("monthlyFlowValue");
+                if (monthlyFlowElement) {
+                    console.log('Updating monthlyFlowValue:', data.monthly_flow); // Debug
+                    monthlyFlowElement.innerText = formatValue(data.monthly_flow, 'L', '-', true);
+                }
+                
+                const codElement = document.getElementById("codValue");
+                if (codElement) codElement.innerText = formatValue(data.cod, 'mg/L');
+                
+                const bodElement = document.getElementById("bodValue");
+                if (bodElement) bodElement.innerText = formatValue(data.bod, 'mg/L');
+                
+                const tssElement = document.getElementById("tssValue");
+                if (tssElement) tssElement.innerText = formatValue(data.tss, 'mg/L');
+                
+                // Update last updated timestamp
+                try {
                     const timestamp = new Date(data.timestamp);
+                    if (isNaN(timestamp.getTime())) {
+                        throw new Error('Invalid timestamp');
+                    }
+                    console.log('Updating last-updated:', timestamp); // Debug
                     document.getElementById("last-updated").innerText = 
                         `Last updated: ${timestamp.toLocaleString()}`;
-                    
-                    // Store the timestamp to check for new data
                     lastDataTimestamp = data.timestamp;
-                });
+                } catch (e) {
+                    console.error('Error parsing timestamp:', e, data.timestamp); // Debug
+                    document.getElementById("last-updated").innerText = 'Last updated: Invalid timestamp';
+                }
             },
-            error: function(error) {
-                console.error("Error fetching latest data:", error);
+            error: function(xhr, status, error) {
+                console.error('Error fetching latest data:', xhr.responseText, status, error); // Debug
+                document.getElementById("last-updated").innerText = 'Last updated: Error fetching data';
+                alert('Error fetching latest data: ' + (xhr.responseJSON?.error || error));
             }
         });
     }
     
     // Fetch historical data
-// Update the fetchHistoricalData function
     function fetchHistoricalData() {
         $.ajax({
             url: `/api/water-quality/?user_id=${userId}&limit=20`,
             method: 'GET',
             success: function(data) {
+                console.log('Historical Data:', data); // Debug
                 if (data.length === 0) {
+                    $('#history-body').html('<tr><td colspan="100">No data available</td></tr>');
                     return;
                 }
                 
                 // Build table rows
                 let rows = '';
                 data.forEach(item => {
+                    console.log('Historical Item:', item); // Debug
                     const date = new Date(item.timestamp);
-                    
-                    // Calculate daily flow if needed
-                    const dailyFlow = item.daily_flow !== null ? item.daily_flow : getDailyFlow(item, data);
                     
                     // Start row with date/time
                     let row = `<tr><td>${date.toLocaleString()}</td>`;
@@ -201,8 +175,9 @@
                     // Add selected parameters
                     {% if user.show_ph %}row += `<td>${formatValue(item.ph)}</td>`;{% endif %}
                     {% if user.show_flow %}row += `<td>${formatValue(item.flow, 'L/min', '-', true)}</td>`;{% endif %}
-                    {% if user.show_daily_flow %}row += `<td>${formatValue(dailyFlow, 'L', '-', true)}</td>`;{% endif %}
+                    {% if user.show_daily_flow %}row += `<td>${formatValue(item.daily_flow, 'L', '-', true)}</td>`;{% endif %}
                     {% if user.show_total_flow %}row += `<td>${formatValue(item.total_flow, 'L', '-', true)}</td>`;{% endif %}
+                    {% if user.show_monthly_flow %}row += `<td>${formatValue(item.monthly_flow, 'L', '-', true)}</td>`;{% endif %}
                     {% if user.show_cod %}row += `<td>${formatValue(item.cod, 'mg/L')}</td>`;{% endif %}
                     {% if user.show_bod %}row += `<td>${formatValue(item.bod, 'mg/L')}</td>`;{% endif %}
                     {% if user.show_tss %}row += `<td>${formatValue(item.tss, 'mg/L')}</td>`;{% endif %}
@@ -213,8 +188,9 @@
                 });
                 $('#history-body').html(rows);
             },
-            error: function(error) {
-                console.error("Error fetching historical data:", error);
+            error: function(xhr, status, error) {
+                console.error('Error fetching historical data:', xhr.responseText, status, error); // Debug
+                $('#history-body').html('<tr><td colspan="100">Error loading data</td></tr>');
             }
         });
     }
@@ -222,6 +198,7 @@
     // Check for new data
     function checkForNewData() {
         if (lastDataTimestamp === null) {
+            console.log('Initial fetch due to null lastDataTimestamp'); // Debug
             fetchLatestData();
             fetchHistoricalData();
             return;
@@ -231,51 +208,24 @@
             url: `/api/water-quality/latest/?user_id=${userId}`,
             method: 'GET',
             success: function(data) {
-                if (data.timestamp !== lastDataTimestamp) {
+                console.log('CheckForNewData Data:', data); // Debug
+                if (data.timestamp && data.timestamp !== lastDataTimestamp) {
+                    console.log('New data detected, fetching latest'); // Debug
                     fetchLatestData();
                     fetchHistoricalData();
                 }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error checking for new data:', xhr.responseText, status, error); // Debug
             }
         });
-    }
-
-    // Update the updateDisplay function to only update visible elements
-    function updateDisplay(data) {
-        if ($('#phValue').length) $('#last-ph').text(data.ph);
-        if ($('#flowValue').length) $('#last-flow').text(data.flow);
-        if ($('#codValue').length) $('#last-cod').text(data.cod);
-        if ($('#bodValue').length) $('#last-bod').text(data.bod);
-        if ($('#tssValue').length) $('#last-tss').text(data.tss);
-        if ($('#dailyFlowValue').length) $('#dailyFlowValue').text(formatValue(data.daily_flow, 'L', '-', true));
-        if ($('#totalFlowValue').length) $('#totalFlowValue').text(formatValue(data.total_flow, 'L', '-', true));
-    }
-    
-    // Reset daily flow cache at midnight
-    function setupDailyFlowCacheReset() {
-        const now = new Date();
-        const night = new Date(
-            now.getFullYear(),
-            now.getMonth(),
-            now.getDate() + 1, // tomorrow
-            0, 0, 0 // midnight
-        );
-        const msToMidnight = night.getTime() - now.getTime();
-        
-        // Reset cache at midnight
-        setTimeout(function() {
-            dailyFlowCache = {}; // Clear the cache
-            // Set up the next day's reset
-            setupDailyFlowCacheReset();
-        }, msToMidnight);
     }
     
     // Initial data load
     $(document).ready(function() {
+        console.log('Page loaded, initiating data fetch'); // Debug
         fetchLatestData();
         fetchHistoricalData();
-        
-        // Setup cache reset
-        setupDailyFlowCacheReset();
         
         // Poll for updates every 2 seconds
         setInterval(checkForNewData, 2000);

@@ -33,12 +33,14 @@ class CustomUser(AbstractUser):
     show_tss = models.BooleanField(default=True)
     show_daily_flow = models.BooleanField(default=True)
     show_total_flow = models.BooleanField(default=True)
+    show_monthly_flow = models.BooleanField(default=True)
     
     def save(self, *args, **kwargs):
-        # If flow is selected, automatically select daily_flow and total_flow
+        # If flow is selected, automatically select daily_flow, total_flow, and monthly_flow
         if self.show_flow:
             self.show_daily_flow = True
             self.show_total_flow = True
+            self.show_monthly_flow = True
             
         if not self.pk:  # Only on creation
             self.set_password(f"{self.username}@123")
@@ -78,8 +80,6 @@ class CustomUser(AbstractUser):
     def is_regular_user(self):
         return self.role == self.USER
 
-
-
 class WaterQualityData(models.Model):
     user = models.ForeignKey('CustomUser', on_delete=models.CASCADE)
     timestamp = models.DateTimeField(default=timezone.now)
@@ -90,42 +90,60 @@ class WaterQualityData(models.Model):
     bod = models.FloatField(null=True, blank=True)
     tss = models.FloatField(null=True, blank=True)
     daily_flow = models.FloatField(null=True, blank=True)
+    monthly_flow = models.FloatField(null=True, blank=True)
     date = models.DateField(auto_now_add=True)
     
     def __str__(self):
         return f"Data for {self.user.username} at {self.timestamp}"
     
     def save(self, *args, **kwargs):
-    # Ensure date is set before proceeding
+        # Ensure date is set before proceeding
         if self.date is None:
             self.date = timezone.now().date()  # Set to current date if None
 
         print(f"Saving data for user {self.user.username} on {self.date}")  # Debug
 
-        # Calculate daily_flow by summing flow for the current day
+        # Calculate daily_flow and monthly_flow
         if self.flow is not None:
+            # Daily flow calculation
             start_of_day = timezone.datetime.combine(self.date, timezone.datetime.min.time())
             end_of_day = timezone.datetime.combine(self.date, timezone.datetime.max.time())
+            # Monthly flow calculation
+            start_of_month = timezone.datetime(self.date.year, self.date.month, 1)
+            end_of_month = timezone.datetime(self.date.year, self.date.month + 1, 1) - timezone.timedelta(seconds=1)
+            
             # Use timezone-aware datetime if USE_TZ = True
             if settings.USE_TZ:
                 start_of_day = timezone.make_aware(start_of_day)
                 end_of_day = timezone.make_aware(end_of_day)
+                start_of_month = timezone.make_aware(start_of_month)
+                end_of_month = timezone.make_aware(end_of_month)
 
-            print(f"Calculating daily flow between {start_of_day} and {end_of_day}")  # Debug
+            print(f"Calculating flows between {start_of_day} and {end_of_day} (daily), {start_of_month} and {end_of_month} (monthly)")  # Debug
 
-            # Get all records for this user on this day, excluding this instance if it's an update
-            existing_records = WaterQualityData.objects.filter(
+            # Get all records for this user on this day/month, excluding this instance if it's an update
+            existing_daily_records = WaterQualityData.objects.filter(
                 user=self.user,
                 timestamp__range=(start_of_day, end_of_day)
             ).exclude(id=self.id if self.id else None)
 
+            existing_monthly_records = WaterQualityData.objects.filter(
+                user=self.user,
+                timestamp__range=(start_of_month, end_of_month)
+            ).exclude(id=self.id if self.id else None)
+
             # Sum existing flows and add the current flow
-            daily_flow_sum = existing_records.aggregate(models.Sum('flow'))['flow__sum'] or 0
+            daily_flow_sum = existing_daily_records.aggregate(models.Sum('flow'))['flow__sum'] or 0
             self.daily_flow = daily_flow_sum + self.flow
 
-            print(f"Daily flow calculated: {self.daily_flow} (existing sum: {daily_flow_sum}, current flow: {self.flow})")  # Debug
+            monthly_flow_sum = existing_monthly_records.aggregate(models.Sum('flow'))['flow__sum'] or 0
+            self.monthly_flow = monthly_flow_sum + self.flow
+
+            print(f"Daily flow: {self.daily_flow} (existing sum: {daily_flow_sum}, current flow: {self.flow})")  # Debug
+            print(f"Monthly flow: {self.monthly_flow} (existing sum: {monthly_flow_sum}, current flow: {self.flow})")  # Debug
         else:
-            # If no flow is provided, set daily_flow to None
+            # If no flow is provided, set flows to None
             self.daily_flow = None
+            self.monthly_flow = None
 
         super().save(*args, **kwargs)
