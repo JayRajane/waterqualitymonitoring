@@ -14,7 +14,8 @@ class CustomUserCreationForm(forms.ModelForm):
         model = CustomUser
         fields = ('username', 'email', 'role', 'first_name', 'last_name', 
                   'address', 'contact_number', 'state', 'state_code',
-                  'show_ph', 'show_flow', 'show_cod', 'show_bod', 'show_tss')
+                  'show_ph', 'show_flow1', 'show_flow2', 'show_flow3', 
+                  'show_cod', 'show_bod', 'show_tss')
         widgets = {
             'username': forms.TextInput(attrs={'class': 'form-control'}),
             'email': forms.EmailInput(attrs={'class': 'form-control'}),
@@ -26,7 +27,9 @@ class CustomUserCreationForm(forms.ModelForm):
             'state': forms.TextInput(attrs={'class': 'form-control'}),
             'state_code': forms.TextInput(attrs={'class': 'form-control'}),
             'show_ph': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'show_flow': forms.CheckboxInput(attrs={'class': 'form-check-input', 'id': 'id_show_flow'}),
+            'show_flow1': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'show_flow2': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'show_flow3': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'show_cod': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'show_bod': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'show_tss': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
@@ -42,4 +45,6 @@ class CustomUserChangeForm(UserChangeForm):
     class Meta:
         model = CustomUser
         fields = ('username', 'email', 'role', 'first_name', 'last_name', 
-                  'address', 'contact_number', 'state', 'state_code')
+                  'address', 'contact_number', 'state', 'state_code',
+                  'show_ph', 'show_flow1', 'show_flow2', 'show_flow3', 
+                  'show_cod', 'show_bod', 'show_tss')

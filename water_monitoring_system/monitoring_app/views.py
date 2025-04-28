@@ -18,8 +18,8 @@ from .serializers import WaterQualityDataSerializer, UserSerializer
 from .forms import CustomUserCreationForm
 from django.contrib.auth import get_user_model
 import logging
+import requests
 
-# Set up logging
 logger = logging.getLogger(__name__)
 
 User = get_user_model()
@@ -99,6 +99,55 @@ def edit_user(request, user_id):
     else:
         form = CustomUserCreationForm(instance=user)
     return render(request, 'monitoring_app/add_user.html', {'form': form, 'edit_mode': True})
+
+@login_required
+@user_passes_test(is_admin)
+def calibrate_flow(request, user_id):
+    user = get_object_or_404(CustomUser, id=user_id)
+    if request.method == 'POST':
+        try:
+            flow_number = int(request.POST.get('flow_number'))
+            new_total = float(request.POST.get('new_total'))
+            data_record = WaterQualityData.objects.filter(user=user).order_by('-timestamp').first()
+            if data_record:
+                data_record.calibrate_total_flow(flow_number, new_total)
+                messages.success(request, f'Total Flow {flow_number} calibrated successfully!')
+            else:
+                messages.error(request, "No data available to calibrate.")
+            return redirect('user_management')
+        except ValueError as e:
+            messages.error(request, f"Invalid input: {str(e)}")
+        except Exception as e:
+            messages.error(request, f"Error calibrating flow: {str(e)}")
+    return render(request, 'monitoring_app/calibrate_flow.html', {'user': user})
+
+@login_required
+@user_passes_test(is_admin)
+def fetch_external_flow(request, user_id):
+    user = get_object_or_404(CustomUser, id=user_id)
+    try:
+        # Simulated external API call
+        response = requests.get('https://api.example.com/flow_data')  # Replace with actual API
+        data = response.json()
+        flow1_total = data.get('flow1_total', 0)
+        flow2_total = data.get('flow2_total', 0)
+        flow3_total = data.get('flow3_total', 0)
+        
+        data_record = WaterQualityData.objects.filter(user=user).order_by('-timestamp').first()
+        if data_record:
+            if user.show_flow1:
+                data_record.calibrate_total_flow(1, flow1_total)
+            if user.show_flow2:
+                data_record.calibrate_total_flow(2, flow2_total)
+            if user.show_flow3:
+                data_record.calibrate_total_flow(3, flow3_total)
+            messages.success(request, 'External flow data fetched and applied successfully!')
+        else:
+            messages.error(request, "No data available to calibrate.")
+        return redirect('user_management')
+    except Exception as e:
+        messages.error(request, f"Error fetching external flow: {str(e)}")
+        return redirect('user_management')
 
 @login_required
 @user_passes_test(is_admin)
@@ -187,10 +236,18 @@ class WaterQualityDataViewSet(viewsets.ModelViewSet):
             try:
                 user = CustomUser.objects.get(id=user_id)
                 context['show_ph'] = user.show_ph
-                context['show_flow'] = user.show_flow
-                context['show_daily_flow'] = user.show_daily_flow
-                context['show_monthly_flow'] = user.show_monthly_flow
-                context['show_total_flow'] = user.show_total_flow
+                context['show_flow1'] = user.show_flow1
+                context['show_flow2'] = user.show_flow2
+                context['show_flow3'] = user.show_flow3
+                context['show_daily_flow1'] = user.show_daily_flow1
+                context['show_daily_flow2'] = user.show_daily_flow2
+                context['show_daily_flow3'] = user.show_daily_flow3
+                context['show_monthly_flow1'] = user.show_monthly_flow1
+                context['show_monthly_flow2'] = user.show_monthly_flow2
+                context['show_monthly_flow3'] = user.show_monthly_flow3
+                context['show_total_flow1'] = user.show_total_flow1
+                context['show_total_flow2'] = user.show_total_flow2
+                context['show_total_flow3'] = user.show_total_flow3
                 context['show_cod'] = user.show_cod
                 context['show_bod'] = user.show_bod
                 context['show_tss'] = user.show_tss
@@ -242,6 +299,14 @@ class WaterQualityDataViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
+    
+    @action(detail=False, methods=['post'])
+    def submit_data(self, request):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(user=request.user)
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
 
 class UserViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = CustomUser.objects.all()
@@ -299,16 +364,17 @@ def water_quality_data(request):
     if user_id:
         queryset = queryset.filter(user_id=user_id)
     queryset = queryset.order_by('-timestamp')[:int(limit)]
-    data = list(queryset.values('id', 'user_id', 'timestamp', 'ph', 'flow', 'daily_flow', 'monthly_flow', 'total_flow', 'cod', 'bod', 'tss', 'date'))
-    # Convert data for JSON serialization and ensure flow fields are present
+    data = list(queryset.values('id', 'user_id', 'timestamp', 'ph', 'flow1', 'flow2', 'flow3', 
+                                'daily_flow1', 'daily_flow2', 'daily_flow3', 
+                                'monthly_flow1', 'monthly_flow2', 'monthly_flow3', 
+                                'total_flow1', 'total_flow2', 'total_flow3', 
+                                'cod', 'bod', 'tss', 'date'))
     for item in data:
-        if item['daily_flow'] is None:
-            item['daily_flow'] = 0.0
-        if item['monthly_flow'] is None:
-            item['monthly_flow'] = 0.0
-        if item['total_flow'] is None:
-            item['total_flow'] = 0.0
-        # Convert dates to ISO format string
+        for field in ['daily_flow1', 'daily_flow2', 'daily_flow3', 
+                     'monthly_flow1', 'monthly_flow2', 'monthly_flow3', 
+                     'total_flow1', 'total_flow2', 'total_flow3']:
+            if item[field] is None:
+                item[field] = 0.0
         if 'timestamp' in item and item['timestamp']:
             item['timestamp'] = item['timestamp'].isoformat()
         if 'date' in item and item['date']:
@@ -362,7 +428,11 @@ def download_data(request, user_id):
             else:
                 data = list(queryset)
             
-            fields = [field for field in ['ph', 'flow', 'daily_flow', 'monthly_flow', 'total_flow', 'cod', 'bod', 'tss'] if request.POST.get(field)]
+            fields = [field for field in ['ph', 'flow1', 'flow2', 'flow3', 
+                                         'daily_flow1', 'daily_flow2', 'daily_flow3', 
+                                         'monthly_flow1', 'monthly_flow2', 'monthly_flow3', 
+                                         'total_flow1', 'total_flow2', 'total_flow3', 
+                                         'cod', 'bod', 'tss'] if request.POST.get(field)]
             logger.debug(f"Selected fields: {fields}")
             
             if not fields:
@@ -389,7 +459,7 @@ def download_data(request, user_id):
                     cell.fill = header_fill
                     cell.alignment = centered_alignment
                     cell.border = border
-                    ws.column_dimensions[ openpyxl.utils.get_column_letter(col_num)].width = max(12, len(column_title) + 4)
+                    ws.column_dimensions[openpyxl.utils.get_column_letter(col_num)].width = max(12, len(column_title) + 4)
                 
                 row_fill = PatternFill(start_color="E9EDF4", end_color="E9EDF4", fill_type="solid")
                 alt_row_fill = PatternFill(start_color="D3DFEE", end_color="D3DFEE", fill_type="solid")
@@ -412,13 +482,19 @@ def download_data(request, user_id):
                         value = getattr(item, field)
                         if value is None:
                             value = 0.0
-                        if field in ['daily_flow', 'monthly_flow', 'total_flow', 'ph', 'flow', 'cod', 'bod', 'tss'] and value is not None:
+                        if field in ['daily_flow1', 'daily_flow2', 'daily_flow3', 
+                                    'monthly_flow1', 'monthly_flow2', 'monthly_flow3', 
+                                    'total_flow1', 'total_flow2', 'total_flow3', 
+                                    'ph', 'flow1', 'flow2', 'flow3', 'cod', 'bod', 'tss']:
                             value = round(value, 2)
                         cell = ws.cell(row=row_num, column=col_num, value=value)
                         cell.alignment = centered_alignment
                         cell.border = border
                         cell.fill = row_color
-                        if field in ['daily_flow', 'monthly_flow', 'total_flow', 'ph', 'flow', 'cod', 'bod', 'tss']:
+                        if field in ['daily_flow1', 'daily_flow2', 'daily_flow3', 
+                                    'monthly_flow1', 'monthly_flow2', 'monthly_flow3', 
+                                    'total_flow1', 'total_flow2', 'total_flow3', 
+                                    'ph', 'flow1', 'flow2', 'flow3', 'cod', 'bod', 'tss']:
                             cell.number_format = '0.00'
                 
                 response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
@@ -451,7 +527,10 @@ def download_data(request, user_id):
                         value = getattr(item, field)
                         if value is None:
                             value = 0.0
-                        if field in ['daily_flow', 'monthly_flow', 'total_flow', 'ph', 'flow', 'cod', 'bod', 'tss'] and value is not None:
+                        if field in ['daily_flow1', 'daily_flow2', 'daily_flow3', 
+                                    'monthly_flow1', 'monthly_flow2', 'monthly_flow3', 
+                                    'total_flow1', 'total_flow2', 'total_flow3', 
+                                    'ph', 'flow1', 'flow2', 'flow3', 'cod', 'bod', 'tss']:
                             value = f"{value:.2f}"
                         else:
                             value = str(value)
@@ -498,30 +577,39 @@ def submit_data(request):
         try:
             user = User.objects.get(id=user_id)
             ph = request.POST.get('ph', '') or None
-            flow = request.POST.get('flow', '') or None
+            flow1 = request.POST.get('flow1', '') or None
+            flow2 = request.POST.get('flow2', '') or None
+            flow3 = request.POST.get('flow3', '') or None
             cod = request.POST.get('cod', '') or None
             bod = request.POST.get('bod', '') or None
             tss = request.POST.get('tss', '') or None
             
             ph = float(ph) if ph else None
-            flow = float(flow) if flow else None
+            flow1 = float(flow1) if flow1 else None
+            flow2 = float(flow2) if flow2 else None
+            flow3 = float(flow3) if flow3 else None
             cod = float(cod) if cod else None
             bod = float(bod) if bod else None
             tss = float(tss) if tss else None
             
-            latest_record = WaterQualityData.objects.filter(user=user).order_by('-timestamp').first()
-            total_flow = (latest_record.total_flow + flow) if latest_record and flow else (flow or 0)
-            
             new_data = WaterQualityData(
                 user=user,
                 ph=ph if ph is not None else 0,
-                flow=flow if flow is not None else 0,
-                total_flow=total_flow,
+                flow1=flow1,
+                flow2=flow2,
+                flow3=flow3,
+                total_flow1=flow1,
+                total_flow2=flow2,
+                total_flow3=flow3,
                 cod=cod if cod is not None else 0,
                 bod=bod if bod is not None else 0,
                 tss=tss if tss is not None else 0,
-                daily_flow=None,  # Will be calculated in save()
-                monthly_flow=None  # Will be calculated in save()
+                daily_flow1=None,  # Will be calculated in save()
+                daily_flow2=None,
+                daily_flow3=None,
+                monthly_flow1=None,
+                monthly_flow2=None,
+                monthly_flow3=None
             )
             new_data.save()
             return JsonResponse({'success': True})

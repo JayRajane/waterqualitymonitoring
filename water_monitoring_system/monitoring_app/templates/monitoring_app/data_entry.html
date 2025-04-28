@@ -2,172 +2,156 @@
 
 {% block content %}
 <div class="sliding-header">
-    <h1>Automatic Data Generation</h1>
-    <p>Generate random water quality measurements</p>
+    <h1>Data Entry</h1>
+    <p>Enter new water quality data</p>
 </div>
 
-<div class="row mb-4">
-    <div class="col-md-8 offset-md-2">
-        <div class="card">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">Data Generator</h5>
+<!-- Display messages -->
+{% if messages %}
+    <div class="messages mb-4">
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
-            <div class="card-body">
-                <form id="data-generator-form">
-                    {% csrf_token %}
-                    <div class="mb-3 d-flex align-items-end">
-                        <div class="flex-grow-1 me-2">
-                            <label for="user-select" class="form-label">Select User</label>
-                            <select class="form-select" id="user-select" name="user_id" required>
-                                <option value="">-- Select User --</option>
-                                {% for user in users %}
-                                <option value="{{ user.id }}">{{ user.username }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div>
-                            <button type="button" id="start-generator" class="btn btn-success">Start Auto Generation</button>
-                            <button type="button" id="stop-generator" class="btn btn-danger" style="display: none;">Stop Generation</button>
-                        </div>
-                    </div>
-                    
-                    <div class="alert alert-info" id="generation-status" style="display: none;">
-                        <span id="status-message">Random data generation is running...</span>
-                        <br>
-                        <small>Sending data every 5 seconds</small>
-                    </div>
-                    
-                    <div class="card mt-3">
-                        <div class="card-header bg-light">
-                            <h6 class="mb-0">Last Generated Data</h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <p><strong>pH Value:</strong> <span id="last-ph">-</span></p>
-                                    <p><strong>Flow (L/min):</strong> <span id="last-flow">-</span></p>
-                                    <p><strong>COD (mg/L):</strong> <span id="last-cod">-</span></p>
-                                </div>
-                                <div class="col-md-6">
-                                    <p><strong>BOD (mg/L):</strong> <span id="last-bod">-</span></p>
-                                    <p><strong>TSS (mg/L):</strong> <span id="last-tss">-</span></p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </form>
-            </div>
-        </div>
+        {% endfor %}
     </div>
-</div>
+{% endif %}
 
-<div class="text-center mb-4">
-    <a href="{% url 'dashboard' %}" class="btn btn-secondary">Back to Dashboard</a>
+<div class="card">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">Enter Data</h5>
+    </div>
+    <div class="card-body">
+        <form id="data-entry-form">
+            <div class="mb-3">
+                <label for="user_id" class="form-label">Select User</label>
+                <select class="form-select" id="user_id" name="user_id" required>
+                    <option value="">Select a user</option>
+                    {% for user in users %}
+                    <option value="{{ user.id }}">{{ user.username }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div id="parameters-section" style="display: none;">
+                {% for user in users %}
+                <div class="user-parameters" data-user-id="{{ user.id }}" style="display: none;">
+                    <div class="row">
+                        {% if user.show_ph %}
+                        <div class="col-md-4 mb-3">
+                            <label for="ph_{{ user.id }}" class="form-label">pH</label>
+                            <input type="number" step="0.01" class="form-control" id="ph_{{ user.id }}" name="ph">
+                        </div>
+                        {% endif %}
+                        {% if user.show_flow1 %}
+                        <div class="col-md-4 mb-3">
+                            <label for="flow1_{{ user.id }}" class="form-label">Flow 1 (L/min)</label>
+                            <input type="number" step="0.01" class="form-control" id="flow1_{{ user.id }}" name="flow1">
+                        </div>
+                        {% endif %}
+                        {% if user.show_flow2 %}
+                        <div class="col-md-4 mb-3">
+                            <label for="flow2_{{ user.id }}" class="form-label">Flow 2 (L/min)</label>
+                            <input type="number" step="0.01" class="form-control" id="flow2_{{ user.id }}" name="flow2">
+                        </div>
+                        {% endif %}
+                        {% if user.show_flow3 %}
+                        <div class="col-md-4 mb-3">
+                            <label for="flow3_{{ user.id }}" class="form-label">Flow 3 (L/min)</label>
+                            <input type="number" step="0.01" class="form-control" id="flow3_{{ user.id }}" name="flow3">
+                        </div>
+                        {% endif %}
+                        {% if user.show_cod %}
+                        <div class="col-md-4 mb-3">
+                            <label for="cod_{{ user.id }}" class="form-label">COD (mg/L)</label>
+                            <input type="number" step="0.01" class="form-control" id="cod_{{ user.id }}" name="cod">
+                        </div>
+                        {% endif %}
+                        {% if user.show_bod %}
+                        <div class="col-md-4 mb-3">
+                            <label for="bod_{{ user.id }}" class="form-label">BOD (mg/L)</label>
+                            <input type="number" step="0.01" class="form-control" id="bod_{{ user.id }}" name="bod">
+                        </div>
+                        {% endif %}
+                        {% if user.show_tss %}
+                        <div class="col-md-4 mb-3">
+                            <label for="tss_{{ user.id }}" class="form-label">TSS (mg/L)</label>
+                            <input type="number" step="0.01" class="form-control" id="tss_{{ user.id }}" name="tss">
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                <button type="submit" class="btn btn-primary">Submit Data</button>
+                <a href="{% url 'dashboard' %}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-    $(document).ready(function() {
-        let generatorInterval;
-        let generationCount = 0;
+$(document).ready(function() {
+    // Show/hide parameters based on selected user
+    $('#user_id').change(function() {
+        const userId = $(this).val();
+        $('.user-parameters').hide();
+        $('#parameters-section').hide();
         
-        // Generate random data within realistic ranges
-        function generateRandomData() {
-            return {
-                ph: (Math.random() * 14).toFixed(2),
-                flow: (Math.random() * 100).toFixed(2),
-                cod: (Math.random() * 300).toFixed(2),
-                bod: (Math.random() * 150).toFixed(2),
-                tss: (Math.random() * 500).toFixed(2)
-            };
+        if (userId) {
+            $(`.user-parameters[data-user-id="${userId}"]`).show();
+            $('#parameters-section').show();
         }
-        
-        // Update display with latest values
-        function updateDisplay(data) {
-            $('#last-ph').text(data.ph);
-            $('#last-flow').text(data.flow);
-            $('#last-cod').text(data.cod);
-            $('#last-bod').text(data.bod);
-            $('#last-tss').text(data.tss);
-        }
-        
-        // Send data to server
-        function sendData() {
-            const userId = $('#user-select').val();
-            if (!userId) {
-                stopGenerator();
-                alert("User selection is required. Generator stopped.");
-                return;
-            }
-            
-            const randomData = generateRandomData();
-            updateDisplay(randomData);
-            
-            const formData = {
-                user_id: userId,
-                ph: randomData.ph,
-                flow: randomData.flow,
-                cod: randomData.cod,
-                bod: randomData.bod,
-                tss: randomData.tss,
-                csrfmiddlewaretoken: $('input[name="csrfmiddlewaretoken"]').val()
-            };
-            
-            $.ajax({
-                url: "{% url 'submit_data' %}",
-                method: "POST",
-                data: formData,
-                success: function(response) {
-                    generationCount++;
-                    if (response.success) {
-                        $('#status-message').text(`Generated and sent ${generationCount} data sets successfully!`);
-                    } else {
-                        $('#status-message').text(`Error on dataset ${generationCount}: ${response.error}`);
-                    }
-                },
-                error: function(xhr) {
-                    $('#status-message').text(`Network error on dataset ${generationCount}. Still generating...`);
-                }
-            });
-        }
-        
-        // Start data generation
-        function startGenerator() {
-            const userId = $('#user-select').val();
-            if (!userId) {
-                alert("Please select a user first!");
-                return;
-            }
-            
-            // Send initial data immediately
-            sendData();
-            
-            // Then set interval for every 5 seconds
-            generatorInterval = setInterval(sendData, 5000);
-            
-            // Update UI
-            $('#start-generator').hide();
-            $('#stop-generator').show();
-            $('#generation-status').show();
-            $('#user-select').prop('disabled', true);
-        }
-        
-        // Stop data generation
-        function stopGenerator() {
-            clearInterval(generatorInterval);
-            
-            // Update UI
-            $('#start-generator').show();
-            $('#stop-generator').hide();
-            $('#user-select').prop('disabled', false);
-            $('#status-message').text(`Generation stopped after ${generationCount} data sets.`);
-            generationCount = 0;
-        }
-        
-        // Button event handlers
-        $('#start-generator').click(startGenerator);
-        $('#stop-generator').click(stopGenerator);
     });
+    
+    // Handle form submission
+    $('#data-entry-form').submit(function(e) {
+        e.preventDefault();
+        const userId = $('#user_id').val();
+        if (!userId) {
+            alert('Please select a user');
+            return;
+        }
+        
+        const data = {
+            user_id: userId,
+            ph: $(`#ph_${userId}`).val() || null,
+            flow1: $(`#flow1_${userId}`).val() || null,
+            flow2: $(`#flow2_${userId}`).val() || null,
+            flow3: $(`#flow3_${userId}`).val() || null,
+            cod: $(`#cod_${userId}`).val() || null,
+            bod: $(`#bod_${userId}`).val() || null,
+            tss: $(`#tss_${userId}`).val() || null
+        };
+        
+        $.ajax({
+            url: '{% url 'submit_data' %}',
+            method: 'POST',
+            data: data,
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            success: function(response) {
+                if (response.success) {
+                    alert('Data submitted successfully!');
+                    $('#data-entry-form')[0].reset();
+                    $('.user-parameters').hide();
+                    $('#parameters-section').hide();
+                    $('#user_id').val('');
+                } else {
+                    alert('Error submitting data: ' + response.error);
+                }
+            },
+            error: function(xhr, status, error) {
+                alert('Error submitting data: ' + error);
+            }
+        });
+    });
+});
 </script>
 {% endblock %}

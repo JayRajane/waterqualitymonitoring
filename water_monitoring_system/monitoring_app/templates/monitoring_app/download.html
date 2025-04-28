@@ -3,297 +3,311 @@
 {% block content %}
 <div class="sliding-header">
     <h1>Download Data for {{ user.username }}</h1>
-    <p>Export historical Data</p>
+    <p>Select date range and parameters to download or view water quality data</p>
 </div>
 
-<div class="row mb-4">
-    <div class="col-md-12">
-        <div class="card">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">Download Options</h5>
+<!-- Display messages -->
+{% if messages %}
+    <div class="messages mb-4">
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
-            <div class="card-body">
-                <form method="post" action="{% url 'download_data' user.id %}" id="download-form">
-                    {% csrf_token %}
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="start_date" class="form-label">Start Date</label>
-                            <input type="date" class="form-control" id="start_date" name="start_date" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="end_date" class="form-label">End Date</label>
-                            <input type="date" class="form-control" id="end_date" name="end_date" required>
-                            <small class="text-muted">Maximum date range: 31 days</small>
-                        </div>
-                    </div>
-
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="time_interval" class="form-label">Time Interval</label>
-                            <select class="form-select" id="time_interval" name="time_interval">
-                                <option value="0">No interval (all data)</option>
-                                <option value="5">5 minutes</option>
-                                <option value="10">10 minutes</option>
-                                <option value="15">15 minutes</option>
-                                <option value="30">30 minutes</option>
-                                <option value="60">1 hour</option>
-                                <option value="1439">24 hour</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Select Parameters</label>
-                        <div class="row">
-                            <div class="col-md-3">
-                                <div class="form-check">
-                                    <input class="form-check-input parameter-checkbox" type="checkbox" id="ph" name="ph" value="1">
-                                    <label class="form-check-label" for="ph">pH</label>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="form-check">
-                                    <input class="form-check-input parameter-checkbox" type="checkbox" id="flow" name="flow" value="1">
-                                    <label class="form-check-label" for="flow">Flow</label>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="form-check">
-                                    <input class="form-check-input parameter-checkbox" type="checkbox" id="total_flow" name="total_flow" value="1">
-                                    <label class="form-check-label" for="total_flow">Total Flow</label>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="form-check">
-                                    <input class="form-check-input parameter-checkbox" type="checkbox" id="monthly_flow" name="monthly_flow" value="1">
-                                    <label class="form-check-label" for="monthly_flow">Monthly Flow</label>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="form-check">
-                                    <input class="form-check-input parameter-checkbox" type="checkbox" id="cod" name="cod" value="1">
-                                    <label class="form-check-label" for="cod">COD</label>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="form-check">
-                                    <input class="form-check-input parameter-checkbox" type="checkbox" id="bod" name="bod" value="1">
-                                    <label class="form-check-label" for="bod">BOD</label>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="form-check">
-                                    <input class="form-check-input parameter-checkbox" type="checkbox" id="tss" name="tss" value="1">
-                                    <label class="form-check-label" for="tss">TSS</label>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="form-check">
-                                    <input class="form-check-input parameter-checkbox" type="checkbox" id="daily_flow" name="daily_flow" value="1">
-                                    <label class="form-check-label" for="daily_flow">Daily Flow</label>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="select_all" name="select_all">
-                                    <label class="form-check-label" for="select_all"><strong>Select All</strong></label>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">File Format</label>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="format" id="excel" value="excel" checked>
-                            <label class="form-check-label" for="excel">Excel</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="format" id="pdf" value="pdf">
-                            <label class="form-check-label" for="pdf">PDF</label>
-                        </div>
-                    </div>
-                    
-                    <button type="button" id="view-data-btn" class="btn btn-primary">View Data</button>
-                    <button type="submit" id="download-btn" class="btn btn-success" disabled>Download</button>
-                </form>
-            </div>
-        </div>
+        {% endfor %}
     </div>
-</div>
+{% endif %}
 
-<div class="row mb-4" id="preview-container" style="display: none;">
-    <div class="col-md-12">
-        <div class="card">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">Data Preview</h5>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-striped table-hover" id="preview-table">
-                        <thead id="preview-head">
-                            <tr>
-                                <th>Date</th>
-                                <th>Time</th>
-                                <!-- Dynamic headers will be added here -->
-                            </tr>
-                        </thead>
-                        <tbody id="preview-body">
-                            <!-- Dynamic data will be added here -->
-                        </tbody>
-                    </table>
+<div class="card">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">Download/View Options</h5>
+    </div>
+    <div class="card-body">
+        <form id="download-form" method="post" action="{% url 'download_data' user.id %}">
+            {% csrf_token %}
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="start_date" class="form-label">Start Date</label>
+                    <input type="date" class="form-control" id="start_date" name="start_date" required>
+                </div>
+                <div class="col-md-6">
+                    <label for="end_date" class="form-label">End Date</label>
+                    <input type="date" class="form-control" id="end_date" name="end_date" required>
                 </div>
             </div>
-        </div>
+            
+            <div class="mb-3">
+                <label for="time_interval" class="form-label">Time Interval (minutes)</label>
+                <input type="number" class="form-control" id="time_interval" name="time_interval" min="0" value="0" placeholder="Enter interval in minutes">
+                <small class="form-text text-muted">Set to 0 for all data points</small>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Select Parameters</label>
+                <div class="row">
+                    {% if user.show_ph %}
+                    <div class="col-md-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="ph" id="ph" checked>
+                            <label class="form-check-label" for="ph">pH</label>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if user.show_flow1 %}
+                    <div class="col-md-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="flow1" id="flow1" checked>
+                            <label class="form-check-label" for="flow1">Flow 1</label>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="daily_flow1" id="daily_flow1" checked>
+                            <label class="form-check-label" for="daily_flow1">Daily Flow 1</label>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="monthly_flow1" id="monthly_flow1" checked>
+                            <label class="form-check-label" for="monthly_flow1">Monthly Flow 1</label>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="total_flow1" id="total_flow1" checked>
+                            <label class="form-check-label" for="total_flow1">Total Flow 1</label>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if user.show_flow2 %}
+                    <div class="col-md-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="flow2" id="flow2" checked>
+                            <label class="form-check-label" for="flow2">Flow 2</label>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="daily_flow2" id="daily_flow2" checked>
+                            <label class="form-check-label" for="daily_flow2">Daily Flow 2</label>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="monthly_flow2" id="monthly_flow2" checked>
+                            <label class="form-check-label" for="monthly_flow2">Monthly Flow 2</label>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="total_flow2" id="total_flow2" checked>
+                            <label class="form-check-label" for="total_flow2">Total Flow 2</label>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if user.show_flow3 %}
+                    <div class="col-md-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="flow3" id="flow3" checked>
+                            <label class="form-check-label" for="flow3">Flow 3</label>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="daily_flow3" id="daily_flow3" checked>
+                            <label class="form-check-label" for="daily_flow3">Daily Flow 3</label>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="monthly_flow3" id="monthly_flow3" checked>
+                            <label class="form-check-label" for="monthly_flow3">Monthly Flow 3</label>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="total_flow3" id="total_flow3" checked>
+                            <label class="form-check-label" for="total_flow3">Total Flow 3</label>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if user.show_cod %}
+                    <div class="col-md-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="cod" id="cod" checked>
+                            <label class="form-check-label" for="cod">COD</label>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if user.show_bod %}
+                    <div class="col-md-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="bod" id="bod" checked>
+                            <label class="form-check-label" for="bod">BOD</label>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if user.show_tss %}
+                    <div class="col-md-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="tss" id="tss" checked>
+                            <label class="form-check-label" for="tss">TSS</label>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">File Format</label>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="format" id="excel" value="excel" checked>
+                    <label class="form-check-label" for="excel">Excel</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="format" id="pdf" value="pdf">
+                    <label class="form-check-label" for="pdf">PDF</label>
+                </div>
+            </div>
+            
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                <button type="submit" class="btn btn-primary">Download</button>
+                <button type="button" id="view-data-btn" class="btn btn-info">View Data</button>
+                <a href="{% url 'dashboard' %}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
     </div>
 </div>
 
-<div class="text-center mb-4">
-    <a href="{% url 'dashboard' %}" class="btn btn-secondary">Back to Dashboard</a>
+<div id="data-view" class="mt-4" style="display: none;">
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">Selected Data</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover" id="data-table">
+                    <thead>
+                        <tr id="table-header"></tr>
+                    </thead>
+                    <tbody id="data-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-    $(document).ready(function() {
-        // Date range validation
-        function validateDateRange() {
-            const startDate = new Date($('#start_date').val());
-            const endDate = new Date($('#end_date').val());
-            
-            if (startDate && endDate) {
-                const diffTime = Math.abs(endDate - startDate);
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                
-                if (diffDays > 31) {
-                    alert("Date range cannot exceed 31 days.");
-                    $('#end_date').val('');
-                    return false;
-                }
-                if (endDate < startDate) {
-                    alert("End date cannot be before start date.");
-                    $('#end_date').val('');
-                    return false;
-                }
-            }
-            return true;
+$(document).ready(function() {
+    // Format value function
+    function formatValue(value, unit = '', nullText = '-', forceDecimals = false) {
+        if (value === null || value === undefined || value === '') {
+            return nullText;
         }
-        
-        $('#end_date').change(validateDateRange);
-        
-        // Select all checkbox
-        $('#select_all').change(function() {
-            console.log('Select All toggled:', $(this).prop('checked')); // Debug
-            $('.parameter-checkbox').not('#select_all').prop('checked', $(this).prop('checked'));
-            updateDownloadButton();
-        });
-        
-        $('.parameter-checkbox').not('#select_all').change(function() {
-            console.log('Parameter checkbox changed:', $(this).attr('id'), $(this).prop('checked')); // Debug
-            updateDownloadButton();
-            const allChecked = $('.parameter-checkbox').not('#select_all').length === $('.parameter-checkbox:checked').not('#select_all').length;
-            $('#select_all').prop('checked', allChecked);
-        });
-        
-        function updateDownloadButton() {
-            const hasParameters = $('.parameter-checkbox:checked').not('#select_all').length > 0;
-            const hasDateRange = $('#start_date').val() && $('#end_date').val();
-            console.log('Update Download Button:', { hasParameters, hasDateRange }); // Debug
-            $('#download-btn').prop('disabled', !(hasParameters && hasDateRange));
+        const numValue = typeof value === 'string' ? parseFloat(value) : value;
+        if (forceDecimals || unit.includes('L/min') || unit.includes('L') || unit.includes('mg/L')) {
+            return `${numValue.toFixed(2)} ${unit}`.trim();
         }
+        return `${numValue} ${unit}`.trim();
+    }
+
+    // Handle View Data button click
+    $('#view-data-btn').click(function() {
+        const startDate = $('#start_date').val();
+        const endDate = $('#end_date').val();
+        const timeInterval = $('#time_interval').val();
         
-        // Update button state when form changes
-        $('#download-form input, #download-form select').change(updateDownloadButton);
-        
-        // View data button
-        $('#view-data-btn').click(function() {
-            console.log('View Data button clicked'); // Debug
-            if (!$('#start_date').val() || !$('#end_date').val()) {
-                alert("Please select a date range.");
-                return;
-            }
-            
-            if (!validateDateRange()) {
-                return;
-            }
-            
-            const userId = {{ user.id }};
-            const startDate = $('#start_date').val();
-            const endDate = $('#end_date').val();
-            const timeInterval = $('#time_interval').val();
-            
-            // Get selected parameters
-            const selectedParams = [];
-            $('.parameter-checkbox:checked').not('#select_all').each(function() {
-                selectedParams.push($(this).attr('id'));
-            });
-            
-            console.log('Selected Parameters:', selectedParams); // Debug
-            if (selectedParams.length === 0) {
-                alert("Please select at least one parameter.");
-                return;
-            }
-            
-            // Fetch data for preview
-            $.ajax({
-                url: `/api/water-quality/date_range/?user_id=${userId}&start_date=${startDate}&end_date=${endDate}&time_interval=${timeInterval}`,
-                method: 'GET',
-                success: function(data) {
-                    console.log('API Response:', data); // Debug
-                    if (data.length === 0) {
-                        alert("No data found for the selected date range.");
-                        $('#preview-container').hide();
-                        return;
-                    }
-                    
-                    // Sort data by timestamp (descending)
-                    data.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-                    
-                    // Clear previous preview
-                    $('#preview-head tr').empty();
-                    $('#preview-body').empty();
-                    
-                    // Add headers
-                    $('#preview-head tr').append('<th>Date</th><th>Time</th>');
-                    selectedParams.forEach(param => {
-                        $('#preview-head tr').append(`<th>${param.toUpperCase()}</th>`);
-                    });
-                    
-                    // Add data rows
-                    data.forEach(item => {
-                        console.log('Processing item:', item); // Debug
-                        const row = $('<tr></tr>');
-                        const timestamp = new Date(item.timestamp);
-                        const dateStr = timestamp.toISOString().split('T')[0];
-                        const timeStr = timestamp.toTimeString().split(' ')[0];
-                        row.append(`<td>${dateStr}</td>`);
-                        row.append(`<td>${timeStr}</td>`);
-                        
-                        selectedParams.forEach(param => {
-                            let value = item[param];
-                            if (value === null || value === undefined) {
-                                value = 0.0;
-                            }
-                            if (['daily_flow', 'monthly_flow', 'total_flow', 'ph', 'flow', 'cod', 'bod', 'tss'].includes(param)) {
-                                row.append(`<td>${parseFloat(value).toFixed(2)}</td>`);
-                            } else {
-                                row.append(`<td>${value}</td>`);
-                            }
-                        });
-                        
-                        $('#preview-body').append(row);
-                    });
-                    
-                    // Show preview
-                    $('#preview-container').show();
-                    $('#download-btn').prop('disabled', false);
-                },
-                error: function(xhr, status, error) {
-                    console.error('API Error:', xhr.responseText, status, error); // Debug
-                    alert("Error fetching data: " + (xhr.responseJSON?.error || error));
+        if (!startDate || !endDate) {
+            alert('Please select both start and end dates.');
+            return;
+        }
+
+        // Collect selected parameters
+        const parameters = [];
+        $('input[type=checkbox]:checked').each(function() {
+            parameters.push($(this).attr('name'));
+        });
+
+        if (parameters.length === 0) {
+            alert('Please select at least one parameter.');
+            return;
+        }
+
+        // Prepare query parameters
+        const queryParams = new URLSearchParams({
+            user_id: {{ user.id }},
+            start_date: startDate,
+            end_date: endDate,
+            time_interval: timeInterval,
+            parameters: parameters.join(',')
+        });
+
+        // Fetch data via AJAX
+        $.ajax({
+            url: `/api/water-quality/?${queryParams.toString()}`,
+            method: 'GET',
+            success: function(data) {
+                $('#data-view').show();
+                const thead = $('#table-header');
+                const tbody = $('#data-body');
+                thead.empty();
+                tbody.empty();
+
+                if (!data || data.length === 0) {
+                    tbody.append('<tr><td colspan="100%" class="text-center">No data available</td></tr>');
+                    return;
                 }
-            });
+
+                // Build table header
+                thead.append('<th>Date/Time</th>');
+                if (parameters.includes('ph')) thead.append('<th>pH</th>');
+                if (parameters.includes('flow1')) thead.append('<th>Flow 1 (L/min)</th>');
+                if (parameters.includes('daily_flow1')) thead.append('<th>Daily Flow 1 (L)</th>');
+                if (parameters.includes('monthly_flow1')) thead.append('<th>Monthly Flow 1 (L)</th>');
+                if (parameters.includes('total_flow1')) thead.append('<th>Total Flow 1 (L)</th>');
+                if (parameters.includes('flow2')) thead.append('<th>Flow 2 (L/min)</th>');
+                if (parameters.includes('daily_flow2')) thead.append('<th>Daily Flow 2 (L)</th>');
+                if (parameters.includes('monthly_flow2')) thead.append('<th>Monthly Flow 2 (L)</th>');
+                if (parameters.includes('total_flow2')) thead.append('<th>Total Flow 2 (L)</th>');
+                if (parameters.includes('flow3')) thead.append('<th>Flow 3 (L/min)</th>');
+                if (parameters.includes('daily_flow3')) thead.append('<th>Daily Flow 3 (L)</th>');
+                if (parameters.includes('monthly_flow3')) thead.append('<th>Monthly Flow 3 (L)</th>');
+                if (parameters.includes('total_flow3')) thead.append('<th>Total Flow 3 (L)</th>');
+                if (parameters.includes('cod')) thead.append('<th>COD (mg/L)</th>');
+                if (parameters.includes('bod')) thead.append('<th>BOD (mg/L)</th>');
+                if (parameters.includes('tss')) thead.append('<th>TSS (mg/L)</th>');
+
+                // Build table body
+                data.forEach(item => {
+                    const timestamp = new Date(item.timestamp);
+                    const row = $('<tr></tr>');
+                    row.append(`<td>${timestamp.toLocaleString()}</td>`);
+                    if (parameters.includes('ph')) row.append(`<td>${formatValue(item.ph)}</td>`);
+                    if (parameters.includes('flow1')) row.append(`<td>${formatValue(item.flow1, 'L/min', '-', true)}</td>`);
+                    if (parameters.includes('daily_flow1')) row.append(`<td>${formatValue(item.daily_flow1, 'L', '-', true)}</td>`);
+                    if (parameters.includes('monthly_flow1')) row.append(`<td>${formatValue(item.monthly_flow1, 'L', '-', true)}</td>`);
+                    if (parameters.includes('total_flow1')) row.append(`<td>${formatValue(item.total_flow1, 'L', '-', true)}</td>`);
+                    if (parameters.includes('flow2')) row.append(`<td>${formatValue(item.flow2, 'L/min', '-', true)}</td>`);
+                    if (parameters.includes('daily_flow2')) row.append(`<td>${formatValue(item.daily_flow2, 'L', '-', true)}</td>`);
+                    if (parameters.includes('monthly_flow2')) row.append(`<td>${formatValue(item.monthly_flow2, 'L', '-', true)}</td>`);
+                    if (parameters.includes('total_flow2')) row.append(`<td>${formatValue(item.total_flow2, 'L', '-', true)}</td>`);
+                    if (parameters.includes('flow3')) row.append(`<td>${formatValue(item.flow3, 'L/min', '-', true)}</td>`);
+                    if (parameters.includes('daily_flow3')) row.append(`<td>${formatValue(item.daily_flow3, 'L', '-', true)}</td>`);
+                    if (parameters.includes('monthly_flow3')) row.append(`<td>${formatValue(item.monthly_flow3, 'L', '-', true)}</td>`);
+                    if (parameters.includes('total_flow3')) row.append(`<td>${formatValue(item.total_flow3, 'L', '-', true)}</td>`);
+                    if (parameters.includes('cod')) row.append(`<td>${formatValue(item.cod, 'mg/L', '-', true)}</td>`);
+                    if (parameters.includes('bod')) row.append(`<td>${formatValue(item.bod, 'mg/L', '-', true)}</td>`);
+                    if (parameters.includes('tss')) row.append(`<td>${formatValue(item.tss, 'mg/L', '-', true)}</td>`);
+                    tbody.append(row);
+                });
+            },
+            error: function(xhr, status, error) {
+                alert('Error fetching data: ' + error);
+            }
         });
     });
+});
 </script>
 {% endblock %}

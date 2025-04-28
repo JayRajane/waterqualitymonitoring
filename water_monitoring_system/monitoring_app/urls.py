@@ -21,5 +21,7 @@ urlpatterns = [
     path('add-user/', views.add_user, name='add_user'),
     path('edit-user/<int:user_id>/', views.edit_user, name='edit_user'),
     path('delete-user/<int:user_id>/', views.delete_user, name='delete_user'),
+    path('calibrate-flow/<int:user_id>/', views.calibrate_flow, name='calibrate_flow'),
+    path('fetch-external-flow/<int:user_id>/', views.fetch_external_flow, name='fetch_external_flow'),
     path('accounts/logout/', views.logout_confirm, name='logout'),
 ]
