@@ -6,7 +6,6 @@
     <p>Add new water quality data for a user</p>
 </div>
 
-<!-- Display messages -->
 {% if messages %}
     <div class="messages mb-4">
         {% for message in messages %}
@@ -24,6 +23,7 @@
     </div>
     <div class="card-body">
         <form id="add-data-form">
+            {% csrf_token %}
             <div class="mb-3">
                 <label for="user_id" class="form-label">Select User</label>
                 <select class="form-select" id="user_id" name="user_id" required>
@@ -85,9 +85,8 @@
                 {% endfor %}
             </div>
             
-            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                <button type="submit" class="btn btn-primary">Submit Data</button>
-                <a href="{% url 'dashboard' %}" class="btn btn-secondary">Cancel</a>
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary">Submit</button>
             </div>
         </form>
     </div>
@@ -97,54 +96,31 @@
 {% block extra_js %}
 <script>
 $(document).ready(function() {
-    // Show/hide parameters based on selected user
     $('#user_id').change(function() {
-        const userId = $(this).val();
+        var userId = $(this).val();
         $('.user-parameters').hide();
         $('#parameters-section').hide();
-        
         if (userId) {
-            $(`.user-parameters[data-user-id="${userId}"]`).show();
             $('#parameters-section').show();
+            $('.user-parameters[data-user-id="' + userId + '"]').show();
         }
     });
-    
-    // Handle form submission
+
     $('#add-data-form').submit(function(e) {
         e.preventDefault();
-        const userId = $('#user_id').val();
-        if (!userId) {
-            alert('Please select a user');
-            return;
-        }
-        
-        const data = {
-            user_id: userId,
-            ph: $(`#ph_${userId}`).val() || null,
-            flow1: $(`#flow1_${userId}`).val() || null,
-            flow2: $(`#flow2_${userId}`).val() || null,
-            flow3: $(`#flow3_${userId}`).val() || null,
-            cod: $(`#cod_${userId}`).val() || null,
-            bod: $(`#bod_${userId}`).val() || null,
-            tss: $(`#tss_${userId}`).val() || null
-        };
-        
+        var formData = $(this).serialize();
         $.ajax({
-            url: '{% url 'submit_data' %}',
+            url: '{% url "submit_data" %}',
             method: 'POST',
-            data: data,
-            headers: {
-                'X-CSRFToken': '{{ csrf_token }}'
-            },
+            data: formData,
             success: function(response) {
                 if (response.success) {
                     alert('Data submitted successfully!');
                     $('#add-data-form')[0].reset();
                     $('.user-parameters').hide();
                     $('#parameters-section').hide();
-                    $('#user_id').val('');
                 } else {
-                    alert('Error submitting data: ' + response.error);
+                    alert('Error: ' + response.error);
                 }
             },
             error: function(xhr, status, error) {

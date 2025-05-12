@@ -2,24 +2,98 @@
 
 {% block content %}
 <div class="sliding-header">
-    <h1>Welcome, {{ user.username }}!</h1>
-    <p>View your Data here</p>
+    <h1>Welcome, {{ user.username }}</h1>
+    <p>Your water quality monitoring dashboard</p>
 </div>
 
-<div class="row">
-    <div class="col-md-6">
-        <div class="action-button">
-            <h3>Live Status</h3>
-            <p>View real-time water quality data</p>
-            <a href="{% url 'live_status' user.id %}" class="btn btn-primary">View Live Status</a>
-        </div>
+<div class="row text-center mb-4">
+    {% if user.show_ph %}
+    <div class="col-md-4 mb-3">
+        <div class="data-card"><h3>pH</h3><p id="phValue">-</p></div>
     </div>
-    <div class="col-md-6">
-        <div class="action-button">
-            <h3>Download Data</h3>
-            <p>Download historical water quality data</p>
-            <a href="{% url 'download_page' user.id %}" class="btn btn-success">Download Data</a>
-        </div>
+    {% endif %}
+    {% if user.show_flow1 %}
+    <div class="col-md-4 mb-3">
+        <div class="data-card"><h3>Flow 1</h3><p id="flow1Value">-</p></div>
     </div>
+    {% endif %}
+    {% if user.show_flow2 %}
+    <div class="col-md-4 mb-3">
+        <div class="data-card"><h3>Flow 2</h3><p id="flow2Value">-</p></div>
+    </div>
+    {% endif %}
+    {% if user.show_flow3 %}
+    <div class="col-md-4 mb-3">
+        <div class="data-card"><h3>Flow 3</h3><p id="flow3Value">-</p></div>
+    </div>
+    {% endif %}
+    {% if user.show_cod %}
+    <div class="col-md-4 mb-3">
+        <div class="data-card"><h3>COD</h3><p id="codValue">-</p></div>
+    </div>
+    {% endif %}
+    {% if user.show_bod %}
+    <div class="col-md-4 mb-3">
+        <div class="data-card"><h3>BOD</h3><p id="bodValue">-</p></div>
+    </div>
+    {% endif %}
+    {% if user.show_tss %}
+    <div class="col-md-4 mb-3">
+        <div class="data-card"><h3>TSS</h3><p id="tssValue">-</p></div>
+    </div>
+    {% endif %}
 </div>
+
+<div class="text-center">
+    <a href="{% url 'live_status' user.id %}" class="btn btn-primary">View Live Status</a>
+    <a href="{% url 'download_page' user.id %}" class="btn btn-primary">Download Data</a>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    function formatValue(value, unit = '', nullText = '-', forceDecimals = false) {
+        if (value === null || value === undefined || value === '') {
+            return nullText;
+        }
+        const numValue = typeof value === 'string' ? parseFloat(value) : value;
+        if (forceDecimals || unit.includes('L/min') || unit.includes('mg/L')) {
+            return `${numValue.toFixed(2)} ${unit}`.trim();
+        }
+        return `${numValue} ${unit}`.trim();
+    }
+
+    function fetchLatestData() {
+        $.ajax({
+            url: `/api/water-quality/latest/?user_id={{ user.id }}`,
+            method: 'GET',
+            success: function(wqData) {
+                $.ajax({
+                    url: `/api/readings/latest/?user_id={{ user.id }}`,
+                    method: 'GET',
+                    success: function(flowData) {
+                        if (document.getElementById("phValue")) document.getElementById("phValue").innerText = formatValue(wqData.ph);
+                        if (document.getElementById("codValue")) document.getElementById("codValue").innerText = formatValue(wqData.cod, 'mg/L', '-', true);
+                        if (document.getElementById("bodValue")) document.getElementById("bodValue").innerText = formatValue(wqData.bod, 'mg/L', '-', true);
+                        if (document.getElementById("tssValue")) document.getElementById("tssValue").innerText = formatValue(wqData.tss, 'mg/L', '-', true);
+                        if (document.getElementById("flow1Value")) document.getElementById("flow1Value").innerText = formatValue(flowData.flow1?.value, 'L/min', '-', true);
+                        if (document.getElementById("flow2Value")) document.getElementById("flow2Value").innerText = formatValue(flowData.flow2?.value, 'L/min', '-', true);
+                        if (document.getElementById("flow3Value")) document.getElementById("flow3Value").innerText = formatValue(flowData.flow3?.value, 'L/min', '-', true);
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error fetching flow data:', error);
+                    }
+                });
+            },
+            error: function(xhr, status, error) {
+                console.error('Error fetching water quality data:', error);
+            }
+        });
+    }
+
+    fetchLatestData();
+    setInterval(fetchLatestData, 5000);
+});
+</script>
 {% endblock %}

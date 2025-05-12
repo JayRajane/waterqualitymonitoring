@@ -1,27 +1,31 @@
+# monitoring_app/views.py
 from rest_framework import viewsets, permissions
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.http import HttpResponse, JsonResponse
-from datetime import datetime
+from datetime import datetime, timedelta
 from django.utils import timezone
 from django.contrib import messages
-from django.contrib.auth import logout
+from django.contrib.auth import logout, get_user_model
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 from io import BytesIO
-from .models import WaterQualityData, CustomUser
-from .serializers import WaterQualityDataSerializer, UserSerializer
+from .models import WaterQualityData, CustomUser, Reading, Machine
+from .serializers import WaterQualityDataSerializer, ReadingSerializer
 from .forms import CustomUserCreationForm
-from django.contrib.auth import get_user_model
 import logging
 import requests
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from reportlab.lib import colors as reportlab_colors
+from reportlab.lib.colors import HexColor
+from reportlab.lib.units import inch
 
 logger = logging.getLogger(__name__)
-
 User = get_user_model()
 
 def is_admin(user):
@@ -30,7 +34,17 @@ def is_admin(user):
 @login_required
 def dashboard(request):
     if request.user.is_admin:
-        return render(request, 'monitoring_app/admin_dashboard.html')
+        total_users = CustomUser.objects.filter(role=CustomUser.USER).count()
+        recent_data_count = (WaterQualityData.objects.filter(timestamp__gte=timezone.now() - timedelta(days=7)).count() +
+                            Reading.objects.filter(recorded_at__gte=timezone.now() - timedelta(days=7)).count())
+        active_machines = Machine.objects.count()
+        recent_activities = []  # Implement activity log if needed
+        return render(request, 'monitoring_app/admin_dashboard.html', {
+            'total_users': total_users,
+            'recent_data_count': recent_data_count,
+            'active_machines': active_machines,
+            'recent_activities': recent_activities
+        })
     return render(request, 'monitoring_app/user_dashboard.html')
 
 @login_required
@@ -50,7 +64,6 @@ def user_management(request):
 @user_passes_test(is_admin)
 def add_user(request):
     if request.method == 'POST':
-        logger.debug(f"POST data: {request.POST}")
         form = CustomUserCreationForm(request.POST)
         if form.is_valid():
             try:
@@ -68,7 +81,6 @@ def add_user(request):
             messages.error(request, "Please correct the errors below.")
     else:
         form = CustomUserCreationForm()
-    
     return render(request, 'monitoring_app/add_user.html', {'form': form})
 
 @login_required
@@ -108,13 +120,21 @@ def calibrate_flow(request, user_id):
         try:
             flow_number = int(request.POST.get('flow_number'))
             new_total = float(request.POST.get('new_total'))
-            data_record = WaterQualityData.objects.filter(user=user).order_by('-timestamp').first()
-            if data_record:
-                data_record.calibrate_total_flow(flow_number, new_total)
+            machine = Machine.objects.get(name=f'machine_flow_{flow_number}')
+            latest_reading = Reading.objects.filter(
+                user=user, 
+                machine=machine, 
+                parameter=f'flow{flow_number}'
+            ).order_by('-recorded_at').first()
+            if latest_reading:
+                latest_reading.value = new_total
+                latest_reading.save()
                 messages.success(request, f'Total Flow {flow_number} calibrated successfully!')
             else:
-                messages.error(request, "No data available to calibrate.")
+                messages.error(request, "No flow data available to calibrate.")
             return redirect('user_management')
+        except Machine.DoesNotExist:
+            messages.error(request, f"Machine for Flow {flow_number} not found.")
         except ValueError as e:
             messages.error(request, f"Invalid input: {str(e)}")
         except Exception as e:
@@ -126,24 +146,19 @@ def calibrate_flow(request, user_id):
 def fetch_external_flow(request, user_id):
     user = get_object_or_404(CustomUser, id=user_id)
     try:
-        # Simulated external API call
         response = requests.get('https://api.example.com/flow_data')  # Replace with actual API
         data = response.json()
-        flow1_total = data.get('flow1_total', 0)
-        flow2_total = data.get('flow2_total', 0)
-        flow3_total = data.get('flow3_total', 0)
-        
-        data_record = WaterQualityData.objects.filter(user=user).order_by('-timestamp').first()
-        if data_record:
-            if user.show_flow1:
-                data_record.calibrate_total_flow(1, flow1_total)
-            if user.show_flow2:
-                data_record.calibrate_total_flow(2, flow2_total)
-            if user.show_flow3:
-                data_record.calibrate_total_flow(3, flow3_total)
-            messages.success(request, 'External flow data fetched and applied successfully!')
-        else:
-            messages.error(request, "No data available to calibrate.")
+        for flow_number in [1, 2, 3]:
+            if getattr(user, f'show_flow{flow_number}'):
+                machine = Machine.objects.get(name=f'machine_flow_{flow_number}')
+                flow_total = data.get(f'flow{flow_number}_total', 0)
+                Reading.objects.create(
+                    user=user,
+                    machine=machine,
+                    parameter=f'flow{flow_number}',
+                    value=flow_total
+                )
+        messages.success(request, 'External flow data fetched and applied successfully!')
         return redirect('user_management')
     except Exception as e:
         messages.error(request, f"Error fetching external flow: {str(e)}")
@@ -159,11 +174,9 @@ def generate_user_pdf(user):
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter)
     elements = []
-    
     styles = getSampleStyleSheet()
     elements.append(Paragraph("New User Credentials", styles['Title']))
     elements.append(Spacer(1, 12))
-    
     user_data = [
         ['Username', user.username],
         ['Password', f"{user.username}@123"],
@@ -176,7 +189,6 @@ def generate_user_pdf(user):
         ['State', user.state or '-'],
         ['State Code', user.state_code or '-']
     ]
-    
     table = Table(user_data)
     table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
@@ -186,13 +198,10 @@ def generate_user_pdf(user):
         ('BACKGROUND', (0, 1), (-1, -1), colors.white),
         ('GRID', (0, 0), (-1, -1), 1, colors.black),
     ]))
-    
     elements.append(table)
     doc.build(elements)
-    
     pdf = buffer.getvalue()
     buffer.close()
-    
     response = HttpResponse(content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="user_{user.username}_credentials.pdf"'
     response.write(pdf)
@@ -218,17 +227,6 @@ class WaterQualityDataViewSet(viewsets.ModelViewSet):
             queryset = queryset.order_by('-timestamp')
         return queryset
     
-    @action(detail=False, methods=['get'])
-    def latest(self, request):
-        user_id = request.query_params.get('user_id')
-        if not user_id:
-            return Response({"error": "user_id parameter is required"}, status=400)
-        latest_data = WaterQualityData.objects.filter(user_id=user_id).order_by('-timestamp').first()
-        if not latest_data:
-            return Response({"error": "No data found for this user"}, status=404)
-        serializer = self.get_serializer(latest_data)
-        return Response(serializer.data)
-    
     def get_serializer_context(self):
         context = super().get_serializer_context()
         user_id = self.request.query_params.get('user_id')
@@ -236,24 +234,71 @@ class WaterQualityDataViewSet(viewsets.ModelViewSet):
             try:
                 user = CustomUser.objects.get(id=user_id)
                 context['show_ph'] = user.show_ph
-                context['show_flow1'] = user.show_flow1
-                context['show_flow2'] = user.show_flow2
-                context['show_flow3'] = user.show_flow3
-                context['show_daily_flow1'] = user.show_daily_flow1
-                context['show_daily_flow2'] = user.show_daily_flow2
-                context['show_daily_flow3'] = user.show_daily_flow3
-                context['show_monthly_flow1'] = user.show_monthly_flow1
-                context['show_monthly_flow2'] = user.show_monthly_flow2
-                context['show_monthly_flow3'] = user.show_monthly_flow3
-                context['show_total_flow1'] = user.show_total_flow1
-                context['show_total_flow2'] = user.show_total_flow2
-                context['show_total_flow3'] = user.show_total_flow3
                 context['show_cod'] = user.show_cod
                 context['show_bod'] = user.show_bod
                 context['show_tss'] = user.show_tss
             except CustomUser.DoesNotExist:
                 pass
         return context
+    
+    @action(detail=False, methods=['get'])
+    def latest(self, request):
+        user_id = request.query_params.get('user_id')
+        if not user_id:
+            return Response({"error": "user_id parameter is required"}, status=400)
+        try:
+            latest_data = WaterQualityData.objects.filter(user_id=user_id).order_by('-timestamp').first()
+            if latest_data:
+                serializer = self.get_serializer(latest_data)
+                return Response(serializer.data)
+            else:
+                return Response({
+                    'timestamp': None,
+                    'ph': None,
+                    'cod': None,
+                    'bod': None,
+                    'tss': None
+                })
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
+class ReadingViewSet(viewsets.ModelViewSet):
+    queryset = Reading.objects.all()
+    serializer_class = ReadingSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+    
+    def get_queryset(self):
+        queryset = Reading.objects.all()
+        user_id = self.request.query_params.get('user_id')
+        if user_id:
+            queryset = queryset.filter(user_id=user_id)
+        limit = self.request.query_params.get('limit')
+        if limit and limit.isdigit():
+            queryset = queryset.order_by('-recorded_at')[:int(limit)]
+        else:
+            queryset = queryset.order_by('-recorded_at')
+        return queryset
+    
+    @action(detail=False, methods=['get'])
+    def latest(self, request):
+        user_id = request.query_params.get('user_id')
+        if not user_id:
+            return Response({"error": "user_id parameter is required"}, status=400)
+        latest_readings = {'flow1': None, 'flow2': None, 'flow3': None}
+        try:
+            for param in ['flow1', 'flow2', 'flow3']:
+                reading = Reading.objects.filter(user_id=user_id, parameter=param).order_by('-recorded_at').first()
+                if reading:
+                    latest_readings[param] = {
+                        'value': reading.value,
+                        'recorded_at': reading.recorded_at.isoformat()
+                    }
+            return Response(latest_readings)
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
     
     @action(detail=False, methods=['get'])
     def date_range(self, request):
@@ -275,11 +320,11 @@ class WaterQualityDataViewSet(viewsets.ModelViewSet):
         if (end_date - start_date).days > 31:
             return Response({"error": "Date range cannot exceed 31 days"}, status=400)
         
-        queryset = WaterQualityData.objects.filter(
+        queryset = Reading.objects.filter(
             user_id=user_id,
-            date__gte=start_date,
-            date__lte=end_date
-        ).order_by('timestamp')
+            recorded_at__date__gte=start_date,
+            recorded_at__date__lte=end_date
+        ).order_by('recorded_at')
         
         if time_interval > 0:
             interval_seconds = time_interval * 60
@@ -289,29 +334,16 @@ class WaterQualityDataViewSet(viewsets.ModelViewSet):
             for item in data_list:
                 if last_timestamp is None:
                     filtered_data.append(item)
-                    last_timestamp = item.timestamp
+                    last_timestamp = item.recorded_at
                 else:
-                    time_diff = (item.timestamp - last_timestamp).total_seconds()
+                    time_diff = (item.recorded_at - last_timestamp).total_seconds()
                     if time_diff >= interval_seconds:
                         filtered_data.append(item)
-                        last_timestamp = item.timestamp
+                        last_timestamp = item.recorded_at
             queryset = filtered_data
         
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
-    
-    @action(detail=False, methods=['post'])
-    def submit_data(self, request):
-        serializer = self.get_serializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save(user=request.user)
-            return Response(serializer.data, status=201)
-        return Response(serializer.errors, status=400)
-
-class UserViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = CustomUser.objects.all()
-    serializer_class = UserSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 @login_required
 def logout_confirm(request):
@@ -325,12 +357,20 @@ def logout_confirm(request):
 @login_required
 def live_status(request, user_id):
     user = get_object_or_404(User, id=user_id)
-    latest_data = WaterQualityData.objects.filter(user=user).order_by('-timestamp').first()
-    all_data = WaterQualityData.objects.filter(user=user).order_by('-timestamp')[:50]
+    latest_wq_data = WaterQualityData.objects.filter(user=user).order_by('-timestamp').first()
+    latest_flow_readings = {
+        'flow1': Reading.objects.filter(user=user, parameter='flow1').order_by('-recorded_at').first(),
+        'flow2': Reading.objects.filter(user=user, parameter='flow2').order_by('-recorded_at').first(),
+        'flow3': Reading.objects.filter(user=user, parameter='flow3').order_by('-recorded_at').first(),
+    }
+    all_wq_data = WaterQualityData.objects.filter(user=user).order_by('-timestamp')[:50]
+    all_flow_readings = Reading.objects.filter(user=user).order_by('-recorded_at')[:50]
     return render(request, 'monitoring_app/live_status.html', {
         'user': user,
-        'latest_data': latest_data,
-        'all_data': all_data
+        'latest_wq_data': latest_wq_data,
+        'latest_flow_readings': latest_flow_readings,
+        'all_wq_data': all_wq_data,
+        'all_flow_readings': all_flow_readings
     })
 
 @login_required
@@ -341,117 +381,154 @@ def download_page(request, user_id):
 @login_required
 def add_data(request):
     users = User.objects.all()
-    return render(request, 'monitoring_app/add_data.html', {'users': users})
+    machines = Machine.objects.all()
+    return render(request, 'monitoring_app/add_data.html', {'users': users, 'machines': machines})
 
 @login_required
 def data_entry(request):
     if request.user.is_admin:
         users = User.objects.all()
-        return render(request, 'monitoring_app/data_entry.html', {'users': users})
+        machines = Machine.objects.all()
+        return render(request, 'monitoring_app/data_entry.html', {'users': users, 'machines': machines})
     return redirect('dashboard')
 
 @login_required
-def user_list(request):
-    users = User.objects.all()
-    user_data = [{'id': user.id, 'username': user.username} for user in users]
-    return JsonResponse(user_data, safe=False)
-
-@login_required
-def water_quality_data(request):
-    user_id = request.GET.get('user_id')
-    limit = request.GET.get('limit', 20)
-    queryset = WaterQualityData.objects.all()
-    if user_id:
-        queryset = queryset.filter(user_id=user_id)
-    queryset = queryset.order_by('-timestamp')[:int(limit)]
-    data = list(queryset.values('id', 'user_id', 'timestamp', 'ph', 'flow1', 'flow2', 'flow3', 
-                                'daily_flow1', 'daily_flow2', 'daily_flow3', 
-                                'monthly_flow1', 'monthly_flow2', 'monthly_flow3', 
-                                'total_flow1', 'total_flow2', 'total_flow3', 
-                                'cod', 'bod', 'tss', 'date'))
-    for item in data:
-        for field in ['daily_flow1', 'daily_flow2', 'daily_flow3', 
-                     'monthly_flow1', 'monthly_flow2', 'monthly_flow3', 
-                     'total_flow1', 'total_flow2', 'total_flow3']:
-            if item[field] is None:
-                item[field] = 0.0
-        if 'timestamp' in item and item['timestamp']:
-            item['timestamp'] = item['timestamp'].isoformat()
-        if 'date' in item and item['date']:
-            item['date'] = item['date'].isoformat()
-    return JsonResponse(data, safe=False)
-
-def custom_logout(request):
-    logout(request)
-    return redirect('login')
+def submit_data(request):
+    if request.method == 'POST':
+        user_id = request.POST.get('user_id')
+        try:
+            user = User.objects.get(id=user_id)
+            # Non-flow parameters
+            ph = request.POST.get('ph', '') or None
+            cod = request.POST.get('cod', '') or None
+            bod = request.POST.get('bod', '') or None
+            tss = request.POST.get('tss', '') or None
+            ph = float(ph) if ph else None
+            cod = float(cod) if cod else None
+            bod = float(bod) if bod else None
+            tss = float(tss) if tss else None
+            # Save non-flow data
+            if any([ph, cod, bod, tss]):
+                new_wq_data = WaterQualityData(
+                    user=user,
+                    ph=ph,
+                    cod=cod,
+                    bod=bod,
+                    tss=tss
+                )
+                new_wq_data.save()
+            # Flow parameters
+            for flow_number in [1, 2, 3]:
+                flow_value = request.POST.get(f'flow{flow_number}', '') or None
+                if flow_value:
+                    flow_value = float(flow_value)
+                    machine = Machine.objects.get(name=f'machine_flow_{flow_number}')
+                    Reading.objects.create(
+                        user=user,
+                        machine=machine,
+                        parameter=f'flow{flow_number}',
+                        value=flow_value
+                    )
+            return JsonResponse({'success': True})
+        except User.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'User not found'})
+        except Machine.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Machine not found'})
+        except ValueError as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    return JsonResponse({'success': False, 'error': 'Invalid request method'})
 
 @login_required
 def download_data(request, user_id):
     if request.method == 'POST':
         try:
-            logger.debug(f"Download POST data: {request.POST}")
-            
             user = User.objects.get(id=user_id)
             start_date_str = request.POST.get('start_date')
             end_date_str = request.POST.get('end_date')
             file_format = request.POST.get('format')
             time_interval = int(request.POST.get('time_interval', 0))
-            
             start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
             end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
-            
             if (end_date - start_date).days > 31:
                 messages.error(request, "Date range cannot exceed 31 days")
                 return redirect('download_page', user_id=user_id)
-            
-            queryset = WaterQualityData.objects.filter(
-                user=user,
-                date__gte=start_date,
-                date__lte=end_date
-            ).order_by('timestamp')
-            
-            if time_interval > 0:
-                interval_seconds = time_interval * 60
-                filtered_data = []
-                last_timestamp = None
-                data_list = list(queryset)
-                for item in data_list:
-                    if last_timestamp is None:
-                        filtered_data.append(item)
-                        last_timestamp = item.timestamp
-                    else:
-                        time_diff = (item.timestamp - last_timestamp).total_seconds()
-                        if time_diff >= interval_seconds:
-                            filtered_data.append(item)
-                            last_timestamp = item.timestamp
-                data = filtered_data
-            else:
-                data = list(queryset)
-            
-            fields = [field for field in ['ph', 'flow1', 'flow2', 'flow3', 
-                                         'daily_flow1', 'daily_flow2', 'daily_flow3', 
-                                         'monthly_flow1', 'monthly_flow2', 'monthly_flow3', 
-                                         'total_flow1', 'total_flow2', 'total_flow3', 
-                                         'cod', 'bod', 'tss'] if request.POST.get(field)]
-            logger.debug(f"Selected fields: {fields}")
-            
+            # Collect selected parameters
+            fields = [field for field in ['ph', 'flow1', 'flow2', 'flow3', 'cod', 'bod', 'tss'] if request.POST.get(field)]
             if not fields:
                 messages.error(request, "Please select at least one parameter")
                 return redirect('download_page', user_id=user_id)
-            
+            # Fetch data
+            wq_queryset = WaterQualityData.objects.filter(
+                user=user,
+                timestamp__date__gte=start_date,
+                timestamp__date__lte=end_date
+            ).order_by('timestamp')
+            flow_queryset = Reading.objects.filter(
+                user=user,
+                parameter__in=['flow1', 'flow2', 'flow3'],
+                recorded_at__date__gte=start_date,
+                recorded_at__date__lte=end_date
+            ).order_by('recorded_at')
+            # Apply time interval filtering
+            if time_interval > 0:
+                interval_seconds = time_interval * 60
+                filtered_wq = []
+                filtered_flow = []
+                last_wq_timestamp = last_flow_timestamp = None
+                for item in wq_queryset:
+                    if last_wq_timestamp is None or (item.timestamp - last_wq_timestamp).total_seconds() >= interval_seconds:
+                        filtered_wq.append(item)
+                        last_wq_timestamp = item.timestamp
+                for item in flow_queryset:
+                    if last_flow_timestamp is None or (item.recorded_at - last_flow_timestamp).total_seconds() >= interval_seconds:
+                        filtered_flow.append(item)
+                        last_flow_timestamp = item.recorded_at
+                wq_data = filtered_wq
+                flow_data = filtered_flow
+            else:
+                wq_data = list(wq_queryset)
+                flow_data = list(flow_queryset)
+            # Combine data for export
+            combined_data = []
+            for wq in wq_data:
+                entry = {
+                    'timestamp': wq.timestamp,
+                    'date': wq.timestamp.date(),
+                    'ph': wq.ph if 'ph' in fields else None,
+                    'cod': wq.cod if 'cod' in fields else None,
+                    'bod': wq.bod if 'bod' in fields else None,
+                    'tss': wq.tss if 'tss' in fields else None,
+                    'flow1': None,
+                    'flow2': None,
+                    'flow3': None
+                }
+                combined_data.append(entry)
+            for flow in flow_data:
+                entry = next((e for e in combined_data if abs((e['timestamp'] - flow.recorded_at).total_seconds()) < 1), None)
+                if not entry:
+                    entry = {
+                        'timestamp': flow.recorded_at,
+                        'date': flow.recorded_at.date(),
+                        'ph': None,
+                        'cod': None,
+                        'bod': None,
+                        'tss': None,
+                        'flow1': None,
+                        'flow2': None,
+                        'flow3': None
+                    }
+                    combined_data.append(entry)
+                entry[flow.parameter] = flow.value
+            combined_data.sort(key=lambda x: x['timestamp'])
+            # Export to Excel
             if file_format == 'excel':
-                import openpyxl
-                from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-                
                 wb = openpyxl.Workbook()
                 ws = wb.active
                 ws.title = "Water Quality Data"
-                
                 header_font = Font(bold=True, color="FFFFFF")
                 header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
                 centered_alignment = Alignment(horizontal="center", vertical="center")
                 border = Border(left=Side(style="thin"), right=Side(style="thin"), top=Side(style="thin"), bottom=Side(style="thin"))
-                
                 header = ['Date', 'Time'] + [field.upper() for field in fields]
                 for col_num, column_title in enumerate(header, 1):
                     cell = ws.cell(row=1, column=col_num, value=column_title)
@@ -460,103 +537,73 @@ def download_data(request, user_id):
                     cell.alignment = centered_alignment
                     cell.border = border
                     ws.column_dimensions[openpyxl.utils.get_column_letter(col_num)].width = max(12, len(column_title) + 4)
-                
                 row_fill = PatternFill(start_color="E9EDF4", end_color="E9EDF4", fill_type="solid")
                 alt_row_fill = PatternFill(start_color="D3DFEE", end_color="D3DFEE", fill_type="solid")
-                
-                for row_num, item in enumerate(data, 2):
+                for row_num, item in enumerate(combined_data, 2):
                     row_color = row_fill if row_num % 2 == 0 else alt_row_fill
-                    date_cell = ws.cell(row=row_num, column=1, value=item.date.strftime('%Y-%m-%d'))
+                    date_cell = ws.cell(row=row_num, column=1, value=item['date'].strftime('%Y-%m-%d'))
                     date_cell.alignment = centered_alignment
                     date_cell.border = border
                     date_cell.fill = row_color
-                    
-                    localized_timestamp = timezone.localtime(item.timestamp)
+                    localized_timestamp = timezone.localtime(item['timestamp'])
                     time_cell = ws.cell(row=row_num, column=2, value=localized_timestamp.strftime('%H:%M:%S'))
                     time_cell.alignment = centered_alignment
                     time_cell.border = border
                     time_cell.fill = row_color
                     time_cell.number_format = '@'
-                    
                     for col_num, field in enumerate(fields, 3):
-                        value = getattr(item, field)
+                        value = item[field]
                         if value is None:
                             value = 0.0
-                        if field in ['daily_flow1', 'daily_flow2', 'daily_flow3', 
-                                    'monthly_flow1', 'monthly_flow2', 'monthly_flow3', 
-                                    'total_flow1', 'total_flow2', 'total_flow3', 
-                                    'ph', 'flow1', 'flow2', 'flow3', 'cod', 'bod', 'tss']:
-                            value = round(value, 2)
+                        value = round(value, 2)
                         cell = ws.cell(row=row_num, column=col_num, value=value)
                         cell.alignment = centered_alignment
                         cell.border = border
                         cell.fill = row_color
-                        if field in ['daily_flow1', 'daily_flow2', 'daily_flow3', 
-                                    'monthly_flow1', 'monthly_flow2', 'monthly_flow3', 
-                                    'total_flow1', 'total_flow2', 'total_flow3', 
-                                    'ph', 'flow1', 'flow2', 'flow3', 'cod', 'bod', 'tss']:
-                            cell.number_format = '0.00'
-                
+                        cell.number_format = '0.00'
                 response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
                 response['Content-Disposition'] = f'attachment; filename="Datasheet_{start_date}_to_{end_date}.xlsx"'
                 wb.save(response)
                 return response
-            
+            # Export to PDF
             elif file_format == 'pdf':
-                from reportlab.lib import colors
-                from reportlab.lib.colors import HexColor
-                from reportlab.lib.units import inch
-                
                 response = HttpResponse(content_type='application/pdf')
                 response['Content-Disposition'] = f'attachment; filename="Datasheet_{start_date}_to_{end_date}.pdf"'
-                
                 buffer = BytesIO()
                 doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=0.5*inch, leftMargin=0.5*inch, topMargin=0.75*inch, bottomMargin=0.75*inch)
                 elements = []
-                
                 styles = getSampleStyleSheet()
                 elements.append(Paragraph(f"Datasheet for {user.username}", styles['Title']))
                 elements.append(Paragraph(f"Date Range: {start_date} to {end_date}", styles['Normal']))
                 elements.append(Spacer(1, 0.25*inch))
-                
                 table_data = [['Date', 'Time'] + [field.upper() for field in fields]]
-                for item in data:
-                    localized_timestamp = timezone.localtime(item.timestamp)
-                    row = [item.date.strftime('%Y-%m-%d'), localized_timestamp.strftime('%H:%M:%S')]
+                for item in combined_data:
+                    localized_timestamp = timezone.localtime(item['timestamp'])
+                    row = [item['date'].strftime('%Y-%m-%d'), localized_timestamp.strftime('%H:%M:%S')]
                     for field in fields:
-                        value = getattr(item, field)
+                        value = item[field]
                         if value is None:
                             value = 0.0
-                        if field in ['daily_flow1', 'daily_flow2', 'daily_flow3', 
-                                    'monthly_flow1', 'monthly_flow2', 'monthly_flow3', 
-                                    'total_flow1', 'total_flow2', 'total_flow3', 
-                                    'ph', 'flow1', 'flow2', 'flow3', 'cod', 'bod', 'tss']:
-                            value = f"{value:.2f}"
-                        else:
-                            value = str(value)
+                        value = f"{value:.2f}"
                         row.append(value)
                     table_data.append(row)
-                
                 table = Table(table_data, repeatRows=1)
                 table.setStyle(TableStyle([
                     ('BACKGROUND', (0, 0), (-1, 0), HexColor('#0096FF')),
-                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), reportlab_colors.whitesmoke),
                     ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                     ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
                     ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                    ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-                    ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                    ('BACKGROUND', (0, 1), (-1, -1), reportlab_colors.white),
+                    ('GRID', (0, 0), (-1, -1), 1, reportlab_colors.black),
                     ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                 ]))
-                
                 elements.append(table)
                 doc.build(elements)
-                
                 pdf = buffer.getvalue()
                 buffer.close()
                 response.write(pdf)
                 return response
-            
         except User.DoesNotExist:
             messages.error(request, "User not found")
             return redirect('download_page', user_id=user_id)
@@ -564,57 +611,7 @@ def download_data(request, user_id):
             messages.error(request, f"Invalid date format: {str(e)}")
             return redirect('download_page', user_id=user_id)
         except Exception as e:
-            logger.error(f"Error downloading data: {str(e)}")
+            logger.error(f"Error downloading data: {e}")
             messages.error(request, f"An error occurred: {str(e)}")
             return redirect('download_page', user_id=user_id)
-    
     return redirect('download_page', user_id=user_id)
-
-@login_required
-def submit_data(request):
-    if request.method == 'POST':
-        user_id = request.POST.get('user_id')
-        try:
-            user = User.objects.get(id=user_id)
-            ph = request.POST.get('ph', '') or None
-            flow1 = request.POST.get('flow1', '') or None
-            flow2 = request.POST.get('flow2', '') or None
-            flow3 = request.POST.get('flow3', '') or None
-            cod = request.POST.get('cod', '') or None
-            bod = request.POST.get('bod', '') or None
-            tss = request.POST.get('tss', '') or None
-            
-            ph = float(ph) if ph else None
-            flow1 = float(flow1) if flow1 else None
-            flow2 = float(flow2) if flow2 else None
-            flow3 = float(flow3) if flow3 else None
-            cod = float(cod) if cod else None
-            bod = float(bod) if bod else None
-            tss = float(tss) if tss else None
-            
-            new_data = WaterQualityData(
-                user=user,
-                ph=ph if ph is not None else 0,
-                flow1=flow1,
-                flow2=flow2,
-                flow3=flow3,
-                total_flow1=flow1,
-                total_flow2=flow2,
-                total_flow3=flow3,
-                cod=cod if cod is not None else 0,
-                bod=bod if bod is not None else 0,
-                tss=tss if tss is not None else 0,
-                daily_flow1=None,  # Will be calculated in save()
-                daily_flow2=None,
-                daily_flow3=None,
-                monthly_flow1=None,
-                monthly_flow2=None,
-                monthly_flow3=None
-            )
-            new_data.save()
-            return JsonResponse({'success': True})
-        except User.DoesNotExist:
-            return JsonResponse({'success': False, 'error': 'User not found'})
-        except ValueError as e:
-            return JsonResponse({'success': False, 'error': str(e)})
-    return JsonResponse({'success': False, 'error': 'Invalid request method'})

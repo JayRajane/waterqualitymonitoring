@@ -1,9 +1,9 @@
+# monitoring_app/forms.py
 from django import forms
 from django.core.validators import RegexValidator
 from django.contrib.auth.forms import UserChangeForm
 from .models import CustomUser
 
-# Custom validator for username format
 username_validator = RegexValidator(
     regex=r'^[a-z0-9]{3,30}$',
     message='Username must be 3-30 characters long and contain only lowercase letters and numbers.'

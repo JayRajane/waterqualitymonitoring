@@ -11,11 +11,9 @@
     Connection error. Unable to fetch latest data. Please check your network connection.
 </div>
 
-<!-- Non-flow parameters (pH, COD, BOD, TSS) -->
 {% if user.show_ph or user.show_cod or user.show_bod or user.show_tss %}
 <div class="row text-center mb-4">
     {% if user.show_ph and user.show_cod and user.show_bod and user.show_tss %}
-        <!-- All four selected: two rows -->
         <div class="col-md-6 mb-3">
             {% if user.show_ph %}
             <div class="data-card"><h3>pH</h3><p id="phValue">-</p></div>
@@ -37,7 +35,6 @@
             {% endif %}
         </div>
     {% else %}
-        <!-- Three or fewer selected: single row -->
         {% if user.show_ph %}
         <div class="col-md-{% if user.show_ph and user.show_cod and user.show_bod %}4{% elif user.show_ph and user.show_cod %}6{% else %}12{% endif %} mb-3">
             <div class="data-card"><h3>pH</h3><p id="phValue">-</p></div>
@@ -62,29 +59,19 @@
 </div>
 {% endif %}
 
-<!-- Flow parameters (Flow1, Flow2, Flow3) -->
 {% if user.show_flow1 %}
 <div class="row text-center mb-4">
     <div class="col-md-3 mb-3"><div class="data-card"><h3>Flow 1</h3><p id="flow1Value">-</p></div></div>
-    <div class="col-md-3 mb-3"><div class="data-card"><h3>Daily Flow 1</h3><p id="dailyFlow1Value">-</p></div></div>
-    <div class="col-md-3 mb-3"><div class="data-card"><h3>Monthly Flow 1</h3><p id="monthlyFlow1Value">-</p></div></div>
-    <div class="col-md-3 mb-3"><div class="data-card"><h3>Total Flow 1</h3><p id="totalFlow1Value">-</p></div></div>
 </div>
 {% endif %}
 {% if user.show_flow2 %}
 <div class="row text-center mb-4">
     <div class="col-md-3 mb-3"><div class="data-card"><h3>Flow 2</h3><p id="flow2Value">-</p></div></div>
-    <div class="col-md-3 mb-3"><div class="data-card"><h3>Daily Flow 2</h3><p id="dailyFlow2Value">-</p></div></div>
-    <div class="col-md-3 mb-3"><div class="data-card"><h3>Monthly Flow 2</h3><p id="monthlyFlow2Value">-</p></div></div>
-    <div class="col-md-3 mb-3"><div class="data-card"><h3>Total Flow 2</h3><p id="totalFlow2Value">-</p></div></div>
 </div>
 {% endif %}
 {% if user.show_flow3 %}
 <div class="row text-center mb-4">
     <div class="col-md-3 mb-3"><div class="data-card"><h3>Flow 3</h3><p id="flow3Value">-</p></div></div>
-    <div class="col-md-3 mb-3"><div class="data-card"><h3>Daily Flow 3</h3><p id="dailyFlow3Value">-</p></div></div>
-    <div class="col-md-3 mb-3"><div class="data-card"><h3>Monthly Flow 3</h3><p id="monthlyFlow3Value">-</p></div></div>
-    <div class="col-md-3 mb-3"><div class="data-card"><h3>Total Flow 3</h3><p id="totalFlow3Value">-</p></div></div>
 </div>
 {% endif %}
 
@@ -107,31 +94,15 @@
                             <tr>
                                 <th>Date/Time</th>
                                 {% if user.show_ph %}<th>pH</th>{% endif %}
-                                {% if user.show_flow1 %}
-                                <th>Flow 1 (L/min)</th>
-                                <th>Daily Flow 1 (L)</th>
-                                <th>Monthly Flow 1 (L)</th>
-                                <th>Total Flow 1 (L)</th>
-                                {% endif %}
-                                {% if user.show_flow2 %}
-                                <th>Flow 2 (L/min)</th>
-                                <th>Daily Flow 2 (L)</th>
-                                <th>Monthly Flow 2 (L)</th>
-                                <th>Total Flow 2 (L)</th>
-                                {% endif %}
-                                {% if user.show_flow3 %}
-                                <th>Flow 3 (L/min)</th>
-                                <th>Daily Flow 3 (L)</th>
-                                <th>Monthly Flow 3 (L)</th>
-                                <th>Total Flow 3 (L)</th>
-                                {% endif %}
+                                {% if user.show_flow1 %}<th>Flow 1 (L/min)</th>{% endif %}
+                                {% if user.show_flow2 %}<th>Flow 2 (L/min)</th>{% endif %}
+                                {% if user.show_flow3 %}<th>Flow 3 (L/min)</th>{% endif %}
                                 {% if user.show_cod %}<th>COD (mg/L)</th>{% endif %}
                                 {% if user.show_bod %}<th>BOD (mg/L)</th>{% endif %}
                                 {% if user.show_tss %}<th>TSS (mg/L)</th>{% endif %}
                             </tr>
                         </thead>
                         <tbody id="history-body">
-                            <!-- Data will be populated here -->
                         </tbody>
                     </table>
                 </div>
@@ -157,22 +128,17 @@
     let chartInstances = {};
     let updateInterval = null;
 
-    // Format a value with units, handling null values
     function formatValue(value, unit = '', nullText = '-', forceDecimals = false) {
         if (value === null || value === undefined || value === '') {
             return nullText;
         }
-        
         const numValue = typeof value === 'string' ? parseFloat(value) : value;
-        
         if (forceDecimals || unit.includes('L/min') || unit.includes('L') || unit.includes('mg/L')) {
             return `${numValue.toFixed(2)} ${unit}`.trim();
         }
-        
         return `${numValue} ${unit}`.trim();
     }
 
-    // Display or hide connection error message
     function displayConnectionError(show) {
         if (show) {
             $('#connection-error').show();
@@ -181,192 +147,166 @@
         }
     }
 
-    // Fetch and update the latest data
-    function fetchLatestData() {
-        $.ajax({
-            url: `/api/water-quality/latest/?user_id=${userId}`,
-            method: 'GET',
-            success: function(data) {
-                console.log('Latest Data:', data);
-                displayConnectionError(false);
-                
-                if (!data || !data.timestamp) {
-                    console.warn('No data or invalid timestamp received');
-                    document.getElementById("last-updated").innerText = 'Last updated: No data available';
-                    return;
+function fetchLatestData() {
+    $.ajax({
+        url: `/api/water-quality/latest/?user_id=${userId}`,
+        method: 'GET',
+        success: function(wqData) {
+            $.ajax({
+                url: `/api/readings/latest/?user_id=${userId}`,
+                method: 'GET',
+                success: function(flowData) {
+                    displayConnectionError(false);
+                    const timestamp = wqData.timestamp || Object.values(flowData)[0]?.recorded_at;
+                    if (!timestamp) {
+                        document.getElementById("last-updated").innerText = 'Last updated: No data available';
+                        return;
+                    }
+                    const ts = new Date(timestamp);
+                    document.getElementById("last-updated").innerText = `Last updated: ${ts.toLocaleString()}`;
+                    if (document.getElementById("phValue")) document.getElementById("phValue").innerText = formatValue(wqData.ph);
+                    if (document.getElementById("codValue")) document.getElementById("codValue").innerText = formatValue(wqData.cod, 'mg/L', '-', true);
+                    if (document.getElementById("bodValue")) document.getElementById("bodValue").innerText = formatValue(wqData.bod, 'mg/L', '-', true);
+                    if (document.getElementById("tssValue")) document.getElementById("tssValue").innerText = formatValue(wqData.tss, 'mg/L', '-', true);
+                    if (document.getElementById("flow1Value")) document.getElementById("flow1Value").innerText = formatValue(flowData.flow1?.value, 'L/min', '-', true);
+                    if (document.getElementById("flow2Value")) document.getElementById("flow2Value").innerText = formatValue(flowData.flow2?.value, 'L/min', '-', true);
+                    if (document.getElementById("flow3Value")) document.getElementById("flow3Value").innerText = formatValue(flowData.flow3?.value, 'L/min', '-', true);
+                    lastDataTimestamp = timestamp;
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error fetching flow data:', status, error, xhr.responseText);
+                    displayConnectionError(true);
                 }
-                
-                // Update last updated timestamp
-                const timestamp = new Date(data.timestamp);
-                document.getElementById("last-updated").innerText = `Last updated: ${timestamp.toLocaleString()}`;
-                
-                // Update display cards only if elements exist
-                const phElement = document.getElementById("phValue");
-                if (phElement) phElement.innerText = formatValue(data.ph);
-                
-                const flow1Element = document.getElementById("flow1Value");
-                if (flow1Element) flow1Element.innerText = formatValue(data.flow1, 'L/min', '-', true);
-                
-                const flow2Element = document.getElementById("flow2Value");
-                if (flow2Element) flow2Element.innerText = formatValue(data.flow2, 'L/min', '-', true);
-                
-                const flow3Element = document.getElementById("flow3Value");
-                if (flow3Element) flow3Element.innerText = formatValue(data.flow3, 'L/min', '-', true);
-                
-                const dailyFlow1Element = document.getElementById("dailyFlow1Value");
-                if (dailyFlow1Element) dailyFlow1Element.innerText = formatValue(data.daily_flow1, 'L', '-', true);
-                
-                const dailyFlow2Element = document.getElementById("dailyFlow2Value");
-                if (dailyFlow2Element) dailyFlow2Element.innerText = formatValue(data.daily_flow2, 'L', '-', true);
-                
-                const dailyFlow3Element = document.getElementById("dailyFlow3Value");
-                if (dailyFlow3Element) dailyFlow3Element.innerText = formatValue(data.daily_flow3, 'L', '-', true);
-                
-                const monthlyFlow1Element = document.getElementById("monthlyFlow1Value");
-                if (monthlyFlow1Element) monthlyFlow1Element.innerText = formatValue(data.monthly_flow1, 'L', '-', true);
-                
-                const monthlyFlow2Element = document.getElementById("monthlyFlow2Value");
-                if (monthlyFlow2Element) monthlyFlow2Element.innerText = formatValue(data.monthly_flow2, 'L', '-', true);
-                
-                const monthlyFlow3Element = document.getElementById("monthlyFlow3Value");
-                if (monthlyFlow3Element) monthlyFlow3Element.innerText = formatValue(data.monthly_flow3, 'L', '-', true);
-                
-                const totalFlow1Element = document.getElementById("totalFlow1Value");
-                if (totalFlow1Element) totalFlow1Element.innerText = formatValue(data.total_flow1, 'L', '-', true);
-                
-                const totalFlow2Element = document.getElementById("totalFlow2Value");
-                if (totalFlow2Element) totalFlow2Element.innerText = formatValue(data.total_flow2, 'L', '-', true);
-                
-                const totalFlow3Element = document.getElementById("totalFlow3Value");
-                if (totalFlow3Element) totalFlow3Element.innerText = formatValue(data.total_flow3, 'L', '-', true);
-                
-                const codElement = document.getElementById("codValue");
-                if (codElement) codElement.innerText = formatValue(data.cod, 'mg/L', '-', true);
-                
-                const bodElement = document.getElementById("bodValue");
-                if (bodElement) bodElement.innerText = formatValue(data.bod, 'mg/L', '-', true);
-                
-                const tssElement = document.getElementById("tssValue");
-                if (tssElement) tssElement.innerText = formatValue(data.tss, 'mg/L', '-', true);
-                
-                lastDataTimestamp = data.timestamp;
-            },
-            error: function(xhr, status, error) {
-                console.error('Error fetching latest data:', error);
-                displayConnectionError(true);
-            }
-        });
-    }
+            });
+        },
+        error: function(xhr, status, error) {
+            console.error('Error fetching water quality data:', status, error, xhr.responseText);
+            displayConnectionError(true);
+        }
+    });
+}
 
-    // Fetch historical data
     function fetchHistoricalData() {
         $.ajax({
             url: `/api/water-quality/?user_id=${userId}&limit=50`,
             method: 'GET',
-            success: function(data) {
-                console.log('Historical Data:', data);
-                displayConnectionError(false);
-                
-                const tbody = $('#history-body');
-                tbody.empty();
-                
-                if (!data || data.length === 0) {
-                    tbody.append('<tr><td colspan="100%" class="text-center">No data available</td></tr>');
-                    return;
-                }
-                
-                data.forEach(item => {
-                    const timestamp = new Date(item.timestamp);
-                    const row = $('<tr></tr>');
-                    row.append(`<td>${timestamp.toLocaleString()}</td>`);
-                    
-                    {% if user.show_ph %}
-                    row.append(`<td>${formatValue(item.ph)}</td>`);
-                    {% endif %}
-                    {% if user.show_flow1 %}
-                    row.append(`<td>${formatValue(item.flow1, 'L/min', '-', true)}</td>`);
-                    row.append(`<td>${formatValue(item.daily_flow1, 'L', '-', true)}</td>`);
-                    row.append(`<td>${formatValue(item.monthly_flow1, 'L', '-', true)}</td>`);
-                    row.append(`<td>${formatValue(item.total_flow1, 'L', '-', true)}</td>`);
-                    {% endif %}
-                    {% if user.show_flow2 %}
-                    row.append(`<td>${formatValue(item.flow2, 'L/min', '-', true)}</td>`);
-                    row.append(`<td>${formatValue(item.daily_flow2, 'L', '-', true)}</td>`);
-                    row.append(`<td>${formatValue(item.monthly_flow2, 'L', '-', true)}</td>`);
-                    row.append(`<td>${formatValue(item.total_flow2, 'L', '-', true)}</td>`);
-                    {% endif %}
-                    {% if user.show_flow3 %}
-                    row.append(`<td>${formatValue(item.flow3, 'L/min', '-', true)}</td>`);
-                    row.append(`<td>${formatValue(item.daily_flow3, 'L', '-', true)}</td>`);
-                    row.append(`<td>${formatValue(item.monthly_flow3, 'L', '-', true)}</td>`);
-                    row.append(`<td>${formatValue(item.total_flow3, 'L', '-', true)}</td>`);
-                    {% endif %}
-                    {% if user.show_cod %}
-                    row.append(`<td>${formatValue(item.cod, 'mg/L', '-', true)}</td>`);
-                    {% endif %}
-                    {% if user.show_bod %}
-                    row.append(`<td>${formatValue(item.bod, 'mg/L', '-', true)}</td>`);
-                    {% endif %}
-                    {% if user.show_tss %}
-                    row.append(`<td>${formatValue(item.tss, 'mg/L', '-', true)}</td>`);
-                    {% endif %}
-                    
-                    tbody.append(row);
+            success: function(wqData) {
+                $.ajax({
+                    url: `/api/readings/?user_id=${userId}&limit=50`,
+                    method: 'GET',
+                    success: function(flowData) {
+                        displayConnectionError(false);
+                        const tbody = $('#history-body');
+                        tbody.empty();
+                        if (!wqData && !flowData) {
+                            tbody.append('<tr><td colspan="100%" class="text-center">No data available</td></tr>');
+                            return;
+                        }
+                        // Combine data
+                        let combinedData = [];
+                        wqData.forEach(wq => {
+                            combinedData.push({
+                                timestamp: new Date(wq.timestamp),
+                                ph: wq.ph,
+                                cod: wq.cod,
+                                bod: wq.bod,
+                                tss: wq.tss,
+                                flow1: null,
+                                flow2: null,
+                                flow3: null
+                            });
+                        });
+                        flowData.forEach(flow => {
+                            let entry = combinedData.find(e => Math.abs(e.timestamp - new Date(flow.recorded_at)) < 1000);
+                            if (!entry) {
+                                entry = {
+                                    timestamp: new Date(flow.recorded_at),
+                                    ph: null,
+                                    cod: null,
+                                    bod: null,
+                                    tss: null,
+                                    flow1: null,
+                                    flow2: null,
+                                    flow3: null
+                                };
+                                combinedData.push(entry);
+                            }
+                            entry[flow.parameter] = flow.value;
+                        });
+                        combinedData.sort((a, b) => a.timestamp - b.timestamp);
+                        combinedData.slice(0, 50).forEach(item => {
+                            const row = $('<tr></tr>');
+                            row.append(`<td>${item.timestamp.toLocaleString()}</td>`);
+                            {% if user.show_ph %}
+                            row.append(`<td>${formatValue(item.ph)}</td>`);
+                            {% endif %}
+                            {% if user.show_flow1 %}
+                            row.append(`<td>${formatValue(item.flow1, 'L/min', '-', true)}</td>`);
+                            {% endif %}
+                            {% if user.show_flow2 %}
+                            row.append(`<td>${formatValue(item.flow2, 'L/min', '-', true)}</td>`);
+                            {% endif %}
+                            {% if user.show_flow3 %}
+                            row.append(`<td>${formatValue(item.flow3, 'L/min', '-', true)}</td>`);
+                            {% endif %}
+                            {% if user.show_cod %}
+                            row.append(`<td>${formatValue(item.cod, 'mg/L', '-', true)}</td>`);
+                            {% endif %}
+                            {% if user.show_bod %}
+                            row.append(`<td>${formatValue(item.bod, 'mg/L', '-', true)}</td>`);
+                            {% endif %}
+                            {% if user.show_tss %}
+                            row.append(`<td>${formatValue(item.tss, 'mg/L', '-', true)}</td>`);
+                            {% endif %}
+                            tbody.append(row);
+                        });
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error fetching flow data:', error);
+                        displayConnectionError(true);
+                    }
                 });
             },
             error: function(xhr, status, error) {
-                console.error('Error fetching historical data:', error);
+                console.error('Error fetching water quality data:', error);
                 displayConnectionError(true);
             }
         });
     }
 
-    // Initialize charts for graphic view
-    function initializeCharts(data) {
+    function initializeCharts(wqData, flowData) {
         const container = $('#charts-container');
         container.empty();
-        
         const parameters = [
             {% if user.show_ph %}{ id: 'ph', label: 'pH', color: '#FF6384' },{% endif %}
-            {% if user.show_flow1 %}
-            { id: 'flow1', label: 'Flow 1 (L/min)', color: '#36A2EB' },
-            { id: 'daily_flow1', label: 'Daily Flow 1 (L)', color: '#4BC0C0' },
-            { id: 'monthly_flow1', label: 'Monthly Flow 1 (L)', color: '#9966FF' },
-            { id: 'total_flow1', label: 'Total Flow 1 (L)', color: '#FF9F40' },
-            {% endif %}
-            {% if user.show_flow2 %}
-            { id: 'flow2', label: 'Flow 2 (L/min)', color: '#FFCE56' },
-            { id: 'daily_flow2', label: 'Daily Flow 2 (L)', color: '#36A2EB' },
-            { id: 'monthly_flow2', label: 'Monthly Flow 2 (L)', color: '#4BC0C0' },
-            { id: 'total_flow2', label: 'Total Flow 2 (L)', color: '#9966FF' },
-            {% endif %}
-            {% if user.show_flow3 %}
-            { id: 'flow3', label: 'Flow 3 (L/min)', color: '#FF9F40' },
-            { id: 'daily_flow3', label: 'Daily Flow 3 (L)', color: '#FFCE56' },
-            { id: 'monthly_flow3', label: 'Monthly Flow 3 (L)', color: '#36A2EB' },
-            { id: 'total_flow3', label: 'Total Flow 3 (L)', color: '#4BC0C0' },
-            {% endif %}
+            {% if user.show_flow1 %}{ id: 'flow1', label: 'Flow 1 (L/min)', color: '#36A2EB' },{% endif %}
+            {% if user.show_flow2 %}{ id: 'flow2', label: 'Flow 2 (L/min)', color: '#FFCE56' },{% endif %}
+            {% if user.show_flow3 %}{ id: 'flow3', label: 'Flow 3 (L/min)', color: '#FF9F40' },{% endif %}
             {% if user.show_cod %}{ id: 'cod', label: 'COD (mg/L)', color: '#4BC0C0' },{% endif %}
             {% if user.show_bod %}{ id: 'bod', label: 'BOD (mg/L)', color: '#9966FF' },{% endif %}
             {% if user.show_tss %}{ id: 'tss', label: 'TSS (mg/L)', color: '#FF9F40' }{% endif %}
         ];
-        
         parameters.forEach(param => {
             const canvasId = `chart-${param.id}`;
-            container.append(`
-                <div class="col-md-6 mb-4">
-                    <canvas id="${canvasId}"></canvas>
-                </div>
-            `);
-            
+            container.append(`<div class="col-md-6 mb-4"><canvas id="${canvasId}"></canvas></div>`);
             const ctx = document.getElementById(canvasId).getContext('2d');
+            let data = [];
+            let labels = [];
+            if (['ph', 'cod', 'bod', 'tss'].includes(param.id)) {
+                data = wqData.map(item => item[param.id] || 0);
+                labels = wqData.map(item => new Date(item.timestamp).toLocaleString());
+            } else {
+                const flowRecords = flowData.filter(item => item.parameter === param.id);
+                data = flowRecords.map(item => item.value || 0);
+                labels = flowRecords.map(item => new Date(item.recorded_at).toLocaleString());
+            }
             chartInstances[param.id] = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: data.map(item => new Date(item.timestamp).toLocaleString()),
+                    labels: labels,
                     datasets: [{
                         label: param.label,
-                        data: data.map(item => item[param.id] || 0),
+                        data: data,
                         borderColor: param.color,
                         fill: false,
                         tension: 0.1
@@ -383,12 +323,10 @@
         });
     }
 
-    // Toggle between historical and graphic views
     $(document).ready(function() {
         fetchLatestData();
         fetchHistoricalData();
         updateInterval = setInterval(fetchLatestData, 5000);
-        
         $('#historical-btn').click(function() {
             $('#historical-view').show();
             $('#graphic-view').hide();
@@ -396,23 +334,31 @@
             $(this).addClass('btn-light').removeClass('btn-outline-light');
             $('#graphic-btn').addClass('btn-outline-light').removeClass('btn-light');
         });
-        
         $('#graphic-btn').click(function() {
             $('#historical-view').hide();
             $('#graphic-view').show();
             $('#view-title').text('Graphic View');
             $(this).addClass('btn-light').removeClass('btn-outline-light');
             $('#historical-btn').addClass('btn-outline-light').removeClass('btn-light');
-            
             if (Object.keys(chartInstances).length === 0) {
                 $.ajax({
                     url: `/api/water-quality/?user_id=${userId}&limit=50`,
                     method: 'GET',
-                    success: function(data) {
-                        initializeCharts(data);
+                    success: function(wqData) {
+                        $.ajax({
+                            url: `/api/readings/?user_id=${userId}&limit=50`,
+                            method: 'GET',
+                            success: function(flowData) {
+                                initializeCharts(wqData, flowData);
+                            },
+                            error: function(xhr, status, error) {
+                                console.error('Error fetching flow data for charts:', error);
+                                displayConnectionError(true);
+                            }
+                        });
                     },
                     error: function(xhr, status, error) {
-                        console.error('Error fetching data for charts:', error);
+                        console.error('Error fetching water quality data for charts:', error);
                         displayConnectionError(true);
                     }
                 });
@@ -420,7 +366,6 @@
         });
     });
 
-    // Clean up interval on page unload
     window.onbeforeunload = function() {
         if (updateInterval) {
             clearInterval(updateInterval);

@@ -6,7 +6,6 @@
     <p>Select date range and parameters to download or view water quality data</p>
 </div>
 
-<!-- Display messages -->
 {% if messages %}
     <div class="messages mb-4">
         {% for message in messages %}
@@ -60,24 +59,6 @@
                             <label class="form-check-label" for="flow1">Flow 1</label>
                         </div>
                     </div>
-                    <div class="col-md-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="daily_flow1" id="daily_flow1" checked>
-                            <label class="form-check-label" for="daily_flow1">Daily Flow 1</label>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="monthly_flow1" id="monthly_flow1" checked>
-                            <label class="form-check-label" for="monthly_flow1">Monthly Flow 1</label>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="total_flow1" id="total_flow1" checked>
-                            <label class="form-check-label" for="total_flow1">Total Flow 1</label>
-                        </div>
-                    </div>
                     {% endif %}
                     {% if user.show_flow2 %}
                     <div class="col-md-3">
@@ -86,48 +67,12 @@
                             <label class="form-check-label" for="flow2">Flow 2</label>
                         </div>
                     </div>
-                    <div class="col-md-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="daily_flow2" id="daily_flow2" checked>
-                            <label class="form-check-label" for="daily_flow2">Daily Flow 2</label>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="monthly_flow2" id="monthly_flow2" checked>
-                            <label class="form-check-label" for="monthly_flow2">Monthly Flow 2</label>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="total_flow2" id="total_flow2" checked>
-                            <label class="form-check-label" for="total_flow2">Total Flow 2</label>
-                        </div>
-                    </div>
                     {% endif %}
                     {% if user.show_flow3 %}
                     <div class="col-md-3">
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" name="flow3" id="flow3" checked>
                             <label class="form-check-label" for="flow3">Flow 3</label>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="daily_flow3" id="daily_flow3" checked>
-                            <label class="form-check-label" for="daily_flow3">Daily Flow 3</label>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="monthly_flow3" id="monthly_flow3" checked>
-                            <label class="form-check-label" for="monthly_flow3">Monthly Flow 3</label>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="total_flow3" id="total_flow3" checked>
-                            <label class="form-check-label" for="total_flow3">Total Flow 3</label>
                         </div>
                     </div>
                     {% endif %}
@@ -201,112 +146,133 @@
 {% block extra_js %}
 <script>
 $(document).ready(function() {
-    // Format value function
     function formatValue(value, unit = '', nullText = '-', forceDecimals = false) {
         if (value === null || value === undefined || value === '') {
             return nullText;
         }
         const numValue = typeof value === 'string' ? parseFloat(value) : value;
-        if (forceDecimals || unit.includes('L/min') || unit.includes('L') || unit.includes('mg/L')) {
+        if (forceDecimals || unit.includes('L/min') || unit.includes('mg/L')) {
             return `${numValue.toFixed(2)} ${unit}`.trim();
         }
         return `${numValue} ${unit}`.trim();
     }
 
-    // Handle View Data button click
     $('#view-data-btn').click(function() {
         const startDate = $('#start_date').val();
         const endDate = $('#end_date').val();
         const timeInterval = $('#time_interval').val();
-        
         if (!startDate || !endDate) {
             alert('Please select both start and end dates.');
             return;
         }
-
-        // Collect selected parameters
         const parameters = [];
         $('input[type=checkbox]:checked').each(function() {
             parameters.push($(this).attr('name'));
         });
-
         if (parameters.length === 0) {
             alert('Please select at least one parameter.');
             return;
         }
-
-        // Prepare query parameters
         const queryParams = new URLSearchParams({
             user_id: {{ user.id }},
             start_date: startDate,
             end_date: endDate,
-            time_interval: timeInterval,
-            parameters: parameters.join(',')
+            time_interval: timeInterval
         });
-
-        // Fetch data via AJAX
         $.ajax({
-            url: `/api/water-quality/?${queryParams.toString()}`,
+            url: `/api/water-quality/date_range/?${queryParams.toString()}`,
             method: 'GET',
-            success: function(data) {
-                $('#data-view').show();
-                const thead = $('#table-header');
-                const tbody = $('#data-body');
-                thead.empty();
-                tbody.empty();
-
-                if (!data || data.length === 0) {
-                    tbody.append('<tr><td colspan="100%" class="text-center">No data available</td></tr>');
-                    return;
-                }
-
-                // Build table header
-                thead.append('<th>Date/Time</th>');
-                if (parameters.includes('ph')) thead.append('<th>pH</th>');
-                if (parameters.includes('flow1')) thead.append('<th>Flow 1 (L/min)</th>');
-                if (parameters.includes('daily_flow1')) thead.append('<th>Daily Flow 1 (L)</th>');
-                if (parameters.includes('monthly_flow1')) thead.append('<th>Monthly Flow 1 (L)</th>');
-                if (parameters.includes('total_flow1')) thead.append('<th>Total Flow 1 (L)</th>');
-                if (parameters.includes('flow2')) thead.append('<th>Flow 2 (L/min)</th>');
-                if (parameters.includes('daily_flow2')) thead.append('<th>Daily Flow 2 (L)</th>');
-                if (parameters.includes('monthly_flow2')) thead.append('<th>Monthly Flow 2 (L)</th>');
-                if (parameters.includes('total_flow2')) thead.append('<th>Total Flow 2 (L)</th>');
-                if (parameters.includes('flow3')) thead.append('<th>Flow 3 (L/min)</th>');
-                if (parameters.includes('daily_flow3')) thead.append('<th>Daily Flow 3 (L)</th>');
-                if (parameters.includes('monthly_flow3')) thead.append('<th>Monthly Flow 3 (L)</th>');
-                if (parameters.includes('total_flow3')) thead.append('<th>Total Flow 3 (L)</th>');
-                if (parameters.includes('cod')) thead.append('<th>COD (mg/L)</th>');
-                if (parameters.includes('bod')) thead.append('<th>BOD (mg/L)</th>');
-                if (parameters.includes('tss')) thead.append('<th>TSS (mg/L)</th>');
-
-                // Build table body
-                data.forEach(item => {
-                    const timestamp = new Date(item.timestamp);
-                    const row = $('<tr></tr>');
-                    row.append(`<td>${timestamp.toLocaleString()}</td>`);
-                    if (parameters.includes('ph')) row.append(`<td>${formatValue(item.ph)}</td>`);
-                    if (parameters.includes('flow1')) row.append(`<td>${formatValue(item.flow1, 'L/min', '-', true)}</td>`);
-                    if (parameters.includes('daily_flow1')) row.append(`<td>${formatValue(item.daily_flow1, 'L', '-', true)}</td>`);
-                    if (parameters.includes('monthly_flow1')) row.append(`<td>${formatValue(item.monthly_flow1, 'L', '-', true)}</td>`);
-                    if (parameters.includes('total_flow1')) row.append(`<td>${formatValue(item.total_flow1, 'L', '-', true)}</td>`);
-                    if (parameters.includes('flow2')) row.append(`<td>${formatValue(item.flow2, 'L/min', '-', true)}</td>`);
-                    if (parameters.includes('daily_flow2')) row.append(`<td>${formatValue(item.daily_flow2, 'L', '-', true)}</td>`);
-                    if (parameters.includes('monthly_flow2')) row.append(`<td>${formatValue(item.monthly_flow2, 'L', '-', true)}</td>`);
-                    if (parameters.includes('total_flow2')) row.append(`<td>${formatValue(item.total_flow2, 'L', '-', true)}</td>`);
-                    if (parameters.includes('flow3')) row.append(`<td>${formatValue(item.flow3, 'L/min', '-', true)}</td>`);
-                    if (parameters.includes('daily_flow3')) row.append(`<td>${formatValue(item.daily_flow3, 'L', '-', true)}</td>`);
-                    if (parameters.includes('monthly_flow3')) row.append(`<td>${formatValue(item.monthly_flow3, 'L', '-', true)}</td>`);
-                    if (parameters.includes('total_flow3')) row.append(`<td>${formatValue(item.total_flow3, 'L', '-', true)}</td>`);
-                    if (parameters.includes('cod')) row.append(`<td>${formatValue(item.cod, 'mg/L', '-', true)}</td>`);
-                    if (parameters.includes('bod')) row.append(`<td>${formatValue(item.bod, 'mg/L', '-', true)}</td>`);
-                    if (parameters.includes('tss')) row.append(`<td>${formatValue(item.tss, 'mg/L', '-', true)}</td>`);
-                    tbody.append(row);
+            success: function(wqData) {
+                $.ajax({
+                    url: `/api/readings/date_range/?${queryParams.toString()}`,
+                    method: 'GET',
+                    success: function(flowData) {
+                        $('#data-view').show();
+                        const thead = $('#table-header');
+                        const tbody = $('#data-body');
+                        thead.empty();
+                        tbody.empty();
+                        if (!wqData.length && !flowData.length) {
+                            tbody.append('<tr><td colspan="100%" class="text-center">No data available</td></tr>');
+                            return;
+                        }
+                        // Set table headers
+                        thead.append('<th>Date/Time</th>');
+                        if (parameters.includes('ph')) thead.append('<th>pH</th>');
+                        if (parameters.includes('flow1')) thead.append('<th>Flow 1 (L/min)</th>');
+                        if (parameters.includes('flow2')) thead.append('<th>Flow 2 (L/min)</th>');
+                        if (parameters.includes('flow3')) thead.append('<th>Flow 3 (L/min)</th>');
+                        if (parameters.includes('cod')) thead.append('<th>COD (mg/L)</th>');
+                        if (parameters.includes('bod')) thead.append('<th>BOD (mg/L)</th>');
+                        if (parameters.includes('tss')) thead.append('<th>TSS (mg/L)</th>');
+                        // Combine data
+                        let combinedData = [];
+                        wqData.forEach(wq => {
+                            combinedData.push({
+                                timestamp: new Date(wq.timestamp),
+                                ph: wq.ph,
+                                cod: wq.cod,
+                                bod: wq.bod,
+                                tss: wq.tss,
+                                flow1: null,
+                                flow2: null,
+                                flow3: null
+                            });
+                        });
+                        flowData.forEach(flow => {
+                            let entry = combinedData.find(e => Math.abs(e.timestamp - new Date(flow.recorded_at)) < 1000);
+                            if (!entry) {
+                                entry = {
+                                    timestamp: new Date(flow.recorded_at),
+                                    ph: null,
+                                    cod: null,
+                                    bod: null,
+                                    tss: null,
+                                    flow1: null,
+                                    flow2: null,
+                                    flow3: null
+                                };
+                                combinedData.push(entry);
+                            }
+                            entry[flow.parameter] = flow.value;
+                        });
+                        combinedData.sort((a, b) => a.timestamp - b.timestamp);
+                        // Populate table
+                        combinedData.forEach(item => {
+                            const row = $('<tr></tr>');
+                            row.append(`<td>${item.timestamp.toLocaleString()}</td>`);
+                            if (parameters.includes('ph')) row.append(`<td>${formatValue(item.ph)}</td>`);
+                            if (parameters.includes('flow1')) row.append(`<td>${formatValue(item.flow1, 'L/min', '-', true)}</td>`);
+                            if (parameters.includes('flow2')) row.append(`<td>${formatValue(item.flow2, 'L/min', '-', true)}</td>`);
+                            if (parameters.includes('flow3')) row.append(`<td>${formatValue(item.flow3, 'L/min', '-', true)}</td>`);
+                            if (parameters.includes('cod')) row.append(`<td>${formatValue(item.cod, 'mg/L', '-', true)}</td>`);
+                            if (parameters.includes('bod')) row.append(`<td>${formatValue(item.bod, 'mg/L', '-', true)}</td>`);
+                            if (parameters.includes('tss')) row.append(`<td>${formatValue(item.tss, 'mg/L', '-', true)}</td>`);
+                            tbody.append(row);
+                        });
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error fetching flow data:', error);
+                        alert('Error fetching flow data.');
+                    }
                 });
             },
             error: function(xhr, status, error) {
-                alert('Error fetching data: ' + error);
+                console.error('Error fetching water quality data:', error);
+                alert('Error fetching water quality data.');
             }
         });
+    });
+
+    $('#download-form').submit(function(e) {
+        const parameters = [];
+        $('input[type=checkbox]:checked').each(function() {
+            parameters.push($(this).attr('name'));
+        });
+        if (parameters.length === 0) {
+            e.preventDefault();
+            alert('Please select at least one parameter.');
+        }
     });
 });
 </script>
