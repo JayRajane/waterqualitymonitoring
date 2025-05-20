@@ -1,18 +1,19 @@
-# monitoring_app/urls.py
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
 from django.contrib.auth.views import LoginView
 
 router = DefaultRouter()
-router.register(r'water-quality', views.WaterQualityDataViewSet)
-router.register(r'readings', views.ReadingViewSet)
+router.register(r'water-quality', views.WaterQualityDataViewSet, basename='water-quality')
+router.register(r'readings', views.ReadingViewSet, basename='readings')
+
+# Debug: Print all registered URLs
+print("Router URLs:")
+for url in router.urls:
+    print(f"Pattern: {url.pattern}, Name: {url.name}")
 
 urlpatterns = [
     path('api/', include(router.urls)),
-    # Add custom endpoints for latest data
-    path('api/water-quality/latest/', views.WaterQualityDataViewSet.as_view({'get': 'latest'}), name='latest_water_quality'),
-    path('api/readings/latest/', views.ReadingViewSet.as_view({'get': 'latest'}), name='latest_readings'),
     path('', views.dashboard, name='dashboard'),
     path('all-users/', views.all_users_dashboard, name='all_users_dashboard'),
     path('live-status/<int:user_id>/', views.live_status, name='live_status'),

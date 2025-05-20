@@ -144,6 +144,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
 $(document).ready(function() {
     function formatValue(value, unit = '', nullText = '-', forceDecimals = false) {
@@ -161,10 +162,33 @@ $(document).ready(function() {
         const startDate = $('#start_date').val();
         const endDate = $('#end_date').val();
         const timeInterval = $('#time_interval').val();
+        const userId = {{ user.id | safe }};
+
+        // Validate inputs
         if (!startDate || !endDate) {
             alert('Please select both start and end dates.');
             return;
         }
+        if (!userId) {
+            alert('User ID is missing. Please reload the page.');
+            return;
+        }
+        try {
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+                alert('Invalid date format. Please use YYYY-MM-DD.');
+                return;
+            }
+            if (end < start) {
+                alert('End date must be after start date.');
+                return;
+            }
+        } catch (e) {
+            alert('Invalid date format. Please use YYYY-MM-DD.');
+            return;
+        }
+
         const parameters = [];
         $('input[type=checkbox]:checked').each(function() {
             parameters.push($(this).attr('name'));
@@ -173,29 +197,46 @@ $(document).ready(function() {
             alert('Please select at least one parameter.');
             return;
         }
+
         const queryParams = new URLSearchParams({
-            user_id: {{ user.id }},
+            user_id: userId,
             start_date: startDate,
             end_date: endDate,
             time_interval: timeInterval
         });
+        const wqUrl = `/api/water-quality/date_range/?${queryParams.toString()}`;
+        const readingsUrl = `/api/readings/date_range/?${queryParams.toString()}`;
+        console.log('Water Quality URL:', wqUrl);
+        console.log('Readings URL:', readingsUrl);
+
         $.ajax({
-            url: `/api/water-quality/date_range/?${queryParams.toString()}`,
+            url: wqUrl,
             method: 'GET',
+            headers: {
+                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+            },
             success: function(wqData) {
+                console.log('Water Quality Data:', wqData);
                 $.ajax({
-                    url: `/api/readings/date_range/?${queryParams.toString()}`,
+                    url: readingsUrl,
                     method: 'GET',
+                    headers: {
+                        'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+                    },
                     success: function(flowData) {
+                        console.log('Flow Data:', flowData);
                         $('#data-view').show();
+                        console.log('Data view shown');
                         const thead = $('#table-header');
                         const tbody = $('#data-body');
                         thead.empty();
                         tbody.empty();
+
                         if (!wqData.length && !flowData.length) {
-                            tbody.append('<tr><td colspan="100%" class="text-center">No data available</td></tr>');
+                            tbody.append('<tr><td colspan="100%" class="text-center">No data available for the selected parameters and date range</td></tr>');
                             return;
                         }
+
                         // Set table headers
                         thead.append('<th>Date/Time</th>');
                         if (parameters.includes('ph')) thead.append('<th>pH</th>');
@@ -205,6 +246,7 @@ $(document).ready(function() {
                         if (parameters.includes('cod')) thead.append('<th>COD (mg/L)</th>');
                         if (parameters.includes('bod')) thead.append('<th>BOD (mg/L)</th>');
                         if (parameters.includes('tss')) thead.append('<th>TSS (mg/L)</th>');
+
                         // Combine data
                         let combinedData = [];
                         wqData.forEach(wq => {
@@ -237,6 +279,8 @@ $(document).ready(function() {
                             entry[flow.parameter] = flow.value;
                         });
                         combinedData.sort((a, b) => a.timestamp - b.timestamp);
+                        console.log('Combined Data:', combinedData);
+
                         // Populate table
                         combinedData.forEach(item => {
                             const row = $('<tr></tr>');
@@ -252,14 +296,14 @@ $(document).ready(function() {
                         });
                     },
                     error: function(xhr, status, error) {
-                        console.error('Error fetching flow data:', error);
-                        alert('Error fetching flow data.');
+                        console.error('Flow Data Error:', xhr.status, xhr.responseText);
+                        alert(`Error fetching flow data: ${xhr.responseText || error}`);
                     }
                 });
             },
             error: function(xhr, status, error) {
-                console.error('Error fetching water quality data:', error);
-                alert('Error fetching water quality data.');
+                console.error('Water Quality Data Error:', xhr.status, xhr.responseText);
+                alert(`Error fetching water quality data: ${xhr.responseText || error}`);
             }
         });
     });

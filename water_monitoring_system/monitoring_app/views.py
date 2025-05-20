@@ -1,4 +1,3 @@
-# monitoring_app/views.py
 from rest_framework import viewsets, permissions
 from rest_framework.response import Response
 from rest_framework.decorators import action
@@ -238,13 +237,14 @@ class WaterQualityDataViewSet(viewsets.ModelViewSet):
                 context['show_bod'] = user.show_bod
                 context['show_tss'] = user.show_tss
             except CustomUser.DoesNotExist:
-                pass
+                logger.error(f"User with ID {user_id} not found in get_serializer_context")
         return context
     
     @action(detail=False, methods=['get'])
     def latest(self, request):
         user_id = request.query_params.get('user_id')
         if not user_id:
+            logger.error("Missing user_id parameter in water quality latest action")
             return Response({"error": "user_id parameter is required"}, status=400)
         try:
             latest_data = WaterQualityData.objects.filter(user_id=user_id).order_by('-timestamp').first()
@@ -252,6 +252,7 @@ class WaterQualityDataViewSet(viewsets.ModelViewSet):
                 serializer = self.get_serializer(latest_data)
                 return Response(serializer.data)
             else:
+                logger.info(f"No water quality data found for user_id {user_id}")
                 return Response({
                     'timestamp': None,
                     'ph': None,
@@ -260,7 +261,57 @@ class WaterQualityDataViewSet(viewsets.ModelViewSet):
                     'tss': None
                 })
         except Exception as e:
+            logger.error(f"Error in water quality latest action for user_id {user_id}: {str(e)}", exc_info=True)
             return Response({"error": str(e)}, status=500)
+    
+    @action(detail=False, methods=['get'])
+    def date_range(self, request):
+        user_id = request.query_params.get('user_id')
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        time_interval = request.query_params.get('time_interval', '0')
+        
+        if not all([user_id, start_date, end_date]):
+            logger.error("Missing required parameters in water quality date_range action")
+            return Response({"error": "user_id, start_date, and end_date parameters are required"}, status=400)
+        
+        try:
+            start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+            time_interval = int(time_interval)
+        except ValueError:
+            logger.error(f"Invalid date format or time_interval in water quality date_range: start_date={start_date}, end_date={end_date}, time_interval={time_interval}")
+            return Response({"error": "Invalid date format. Use YYYY-MM-DD"}, status=400)
+        
+        if (end_date - start_date).days > 31:
+            logger.error(f"Date range exceeds 31 days in water quality date_range: start_date={start_date}, end_date={end_date}")
+            return Response({"error": "Date range cannot exceed 31 days"}, status=400)
+        
+        queryset = WaterQualityData.objects.filter(
+            user_id=user_id,
+            timestamp__date__gte=start_date,
+            timestamp__date__lte=end_date
+        ).order_by('timestamp')
+        
+        if time_interval > 0:
+            interval_seconds = time_interval * 60
+            filtered_data = []
+            last_timestamp = None
+            data_list = list(queryset)
+            for item in data_list:
+                if last_timestamp is None:
+                    filtered_data.append(item)
+                    last_timestamp = item.timestamp
+                else:
+                    time_diff = (item.timestamp - last_timestamp).total_seconds()
+                    if time_diff >= interval_seconds:
+                        filtered_data.append(item)
+                        last_timestamp = item.timestamp
+            queryset = filtered_data
+        
+        serializer = self.get_serializer(queryset, many=True)
+        logger.info(f"Returning {len(serializer.data)} water quality records for user_id {user_id}")
+        return Response(serializer.data)
 
 class ReadingViewSet(viewsets.ModelViewSet):
     queryset = Reading.objects.all()
@@ -286,6 +337,7 @@ class ReadingViewSet(viewsets.ModelViewSet):
     def latest(self, request):
         user_id = request.query_params.get('user_id')
         if not user_id:
+            logger.error("Missing user_id parameter in readings latest action")
             return Response({"error": "user_id parameter is required"}, status=400)
         latest_readings = {'flow1': None, 'flow2': None, 'flow3': None}
         try:
@@ -296,8 +348,10 @@ class ReadingViewSet(viewsets.ModelViewSet):
                         'value': reading.value,
                         'recorded_at': reading.recorded_at.isoformat()
                     }
+            logger.info(f"Returning latest readings for user_id {user_id}")
             return Response(latest_readings)
         except Exception as e:
+            logger.error(f"Error in readings latest action for user_id {user_id}: {str(e)}", exc_info=True)
             return Response({"error": str(e)}, status=500)
     
     @action(detail=False, methods=['get'])
@@ -308,6 +362,7 @@ class ReadingViewSet(viewsets.ModelViewSet):
         time_interval = request.query_params.get('time_interval', '0')
         
         if not all([user_id, start_date, end_date]):
+            logger.error("Missing required parameters in readings date_range action")
             return Response({"error": "user_id, start_date, and end_date parameters are required"}, status=400)
         
         try:
@@ -315,9 +370,11 @@ class ReadingViewSet(viewsets.ModelViewSet):
             end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
             time_interval = int(time_interval)
         except ValueError:
+            logger.error(f"Invalid date format or time_interval in readings date_range: start_date={start_date}, end_date={end_date}, time_interval={time_interval}")
             return Response({"error": "Invalid date format. Use YYYY-MM-DD"}, status=400)
         
         if (end_date - start_date).days > 31:
+            logger.error(f"Date range exceeds 31 days in readings date_range: start_date={start_date}, end_date={end_date}")
             return Response({"error": "Date range cannot exceed 31 days"}, status=400)
         
         queryset = Reading.objects.filter(
@@ -343,6 +400,7 @@ class ReadingViewSet(viewsets.ModelViewSet):
             queryset = filtered_data
         
         serializer = self.get_serializer(queryset, many=True)
+        logger.info(f"Returning {len(serializer.data)} reading records for user_id {user_id}")
         return Response(serializer.data)
 
 @login_required
@@ -611,7 +669,7 @@ def download_data(request, user_id):
             messages.error(request, f"Invalid date format: {str(e)}")
             return redirect('download_page', user_id=user_id)
         except Exception as e:
-            logger.error(f"Error downloading data: {e}")
+            logger.error(f"Error downloading data for user_id {user_id}: {str(e)}", exc_info=True)
             messages.error(request, f"An error occurred: {str(e)}")
             return redirect('download_page', user_id=user_id)
     return redirect('download_page', user_id=user_id)
