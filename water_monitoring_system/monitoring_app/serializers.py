@@ -41,12 +41,13 @@ class ReadingSerializer(serializers.ModelSerializer):
         context = kwargs.get('context', {})
         user = context.get('user')
         if user:
-            if not user.show_flow1:
-                if 'parameter' in self.fields and 'flow1' in self.fields['parameter'].choices:
-                    self.fields['parameter'].choices.pop('flow1', None)
-            if not user.show_flow2:
-                if 'parameter' in self.fields and 'flow2' in self.fields['parameter'].choices:
-                    self.fields['parameter'].choices.pop('flow2', None)
-            if not user.show_flow3:
-                if 'parameter' in self.fields and 'flow3' in self.fields['parameter'].choices:
-                    self.fields['parameter'].choices.pop('flow3', None)
+            for i in range(1, 11):
+                if not getattr(user, f'show_flow{i}'):
+                    if 'parameter' in self.fields and f'flow{i}' in self.fields['parameter'].choices:
+                        self.fields['parameter'].choices.pop(f'flow{i}', None)
+                    if 'parameter' in self.fields and f'flow{i}_total' in self.fields['parameter'].choices:
+                        self.fields['parameter'].choices.pop(f'flow{i}_total', None)
+                    if 'parameter' in self.fields and f'flow{i}_daily' in self.fields['parameter'].choices:
+                        self.fields['parameter'].choices.pop(f'flow{i}_daily', None)
+                    if 'parameter' in self.fields and f'flow{i}_monthly' in self.fields['parameter'].choices:
+                        self.fields['parameter'].choices.pop(f'flow{i}_monthly', None)

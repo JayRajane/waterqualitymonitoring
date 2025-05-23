@@ -8,7 +8,6 @@ from django.conf import settings
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 
-# Existing CustomUser model (unchanged)
 class CustomUser(AbstractUser):
     ADMIN = 1
     USER = 2
@@ -25,15 +24,21 @@ class CustomUser(AbstractUser):
     is_verified = models.BooleanField(default=False)
     verification_token = models.UUIDField(default=uuid.uuid4, editable=False)
     
-    # Parameter visibility flags (adjusted for new structure)
     show_ph = models.BooleanField(default=True)
-    show_flow1 = models.BooleanField(default=True)
-    show_flow2 = models.BooleanField(default=True)
-    show_flow3 = models.BooleanField(default=True)
     show_cod = models.BooleanField(default=True)
     show_bod = models.BooleanField(default=True)
     show_tss = models.BooleanField(default=True)
-    
+    show_flow1 = models.BooleanField(default=True)
+    show_flow2 = models.BooleanField(default=True)
+    show_flow3 = models.BooleanField(default=True)
+    show_flow4 = models.BooleanField(default=True)
+    show_flow5 = models.BooleanField(default=True)
+    show_flow6 = models.BooleanField(default=True)
+    show_flow7 = models.BooleanField(default=True)
+    show_flow8 = models.BooleanField(default=True)
+    show_flow9 = models.BooleanField(default=True)
+    show_flow10 = models.BooleanField(default=True)
+
     def save(self, *args, **kwargs):
         if not self.pk:
             self.set_password(f"{self.username}@123")
@@ -70,7 +75,6 @@ class CustomUser(AbstractUser):
     def is_regular_user(self):
         return self.role == self.USER
 
-# New Machine model
 class Machine(models.Model):
     name = models.CharField(max_length=100, blank=True, null=True, default=None)
     
@@ -81,11 +85,10 @@ class Machine(models.Model):
         managed = True
         db_table = 'machine'
 
-# New Reading model
 class Reading(models.Model):
     user = models.ForeignKey('CustomUser', on_delete=models.CASCADE, db_column='user_id')
     machine = models.ForeignKey(Machine, on_delete=models.CASCADE, db_column='machine_id')
-    parameter = models.CharField(max_length=50)  # e.g., 'flow1', 'ph', 'cod', etc.
+    parameter = models.CharField(max_length=50)
     value = models.FloatField(blank=True, null=True, default=None)
     recorded_at = models.DateTimeField(auto_now_add=True)
     
@@ -95,8 +98,18 @@ class Reading(models.Model):
     class Meta:
         managed = True
         db_table = 'reading'
+        indexes = [
+            models.Index(fields=['user', 'parameter', 'recorded_at']),
+            models.Index(fields=['machine', 'parameter', 'recorded_at']),
+        ]
 
-# Modified WaterQualityData model (optional, for non-flow parameters)
+class FlowMeterConfig(models.Model):
+    machine = models.OneToOneField(Machine, on_delete=models.CASCADE)
+    port = models.CharField(max_length=50, default='/dev/ttyUSB0')
+    slave_id = models.PositiveIntegerField(default=1)
+    flow_register = models.PositiveIntegerField(default=2)
+    total_register = models.PositiveIntegerField(default=3)
+
 class WaterQualityData(models.Model):
     user = models.ForeignKey('CustomUser', on_delete=models.CASCADE)
     timestamp = models.DateTimeField(default=timezone.now)

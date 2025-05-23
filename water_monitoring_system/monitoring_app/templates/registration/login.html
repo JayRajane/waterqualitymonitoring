@@ -1,0 +1,30 @@
+{% extends 'monitoring_app/base.html' %}
+
+{% block content %}
+<div class="container">
+    <h2>Login</h2>
+    {% if form.errors %}
+        <p class="text-danger">Your username or password was incorrect. Please try again.</p>
+    {% endif %}
+    {% if next %}
+        {% if user.is_authenticated %}
+            <p class="text-warning">Your account doesn't have access to this page. Please log in with an authorized account.</p>
+        {% else %}
+            <p class="text-info">Please log in to access this page.</p>
+        {% endif %}
+    {% endif %}
+    <form method="post" action="{% url 'login' %}">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="id_username">Username:</label>
+            <input type="text" name="username" id="id_username" class="form-control" required>
+        </div>
+        <div class="form-group">
+            <label for="id_password">Password:</label>
+            <input type="password" name="password" id="id_password" class="form-control" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Log In</button>
+        <input type="hidden" name="next" value="{{ next }}">
+    </form>
+</div>
+{% endblock %}

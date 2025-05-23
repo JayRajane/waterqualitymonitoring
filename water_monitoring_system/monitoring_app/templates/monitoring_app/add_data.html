@@ -41,43 +41,205 @@
                         {% if user.show_ph %}
                         <div class="col-md-4 mb-3">
                             <label for="ph_{{ user.id }}" class="form-label">pH</label>
-                            <input type="number" step="0.01" class="form-control" id="ph_{{ user.id }}" name="ph">
-                        </div>
-                        {% endif %}
-                        {% if user.show_flow1 %}
-                        <div class="col-md-4 mb-3">
-                            <label for="flow1_{{ user.id }}" class="form-label">Flow 1 (L/min)</label>
-                            <input type="number" step="0.01" class="form-control" id="flow1_{{ user.id }}" name="flow1">
-                        </div>
-                        {% endif %}
-                        {% if user.show_flow2 %}
-                        <div class="col-md-4 mb-3">
-                            <label for="flow2_{{ user.id }}" class="form-label">Flow 2 (L/min)</label>
-                            <input type="number" step="0.01" class="form-control" id="flow2_{{ user.id }}" name="flow2">
-                        </div>
-                        {% endif %}
-                        {% if user.show_flow3 %}
-                        <div class="col-md-4 mb-3">
-                            <label for="flow3_{{ user.id }}" class="form-label">Flow 3 (L/min)</label>
-                            <input type="number" step="0.01" class="form-control" id="flow3_{{ user.id }}" name="flow3">
+                            <input type="number" step="0.01" min="0" class="form-control" id="ph_{{ user.id }}" name="ph">
                         </div>
                         {% endif %}
                         {% if user.show_cod %}
                         <div class="col-md-4 mb-3">
                             <label for="cod_{{ user.id }}" class="form-label">COD (mg/L)</label>
-                            <input type="number" step="0.01" class="form-control" id="cod_{{ user.id }}" name="cod">
+                            <input type="number" step="0.01" min="0" class="form-control" id="cod_{{ user.id }}" name="cod">
                         </div>
                         {% endif %}
                         {% if user.show_bod %}
                         <div class="col-md-4 mb-3">
                             <label for="bod_{{ user.id }}" class="form-label">BOD (mg/L)</label>
-                            <input type="number" step="0.01" class="form-control" id="bod_{{ user.id }}" name="bod">
+                            <input type="number" step="0.01" min="0" class="form-control" id="bod_{{ user.id }}" name="bod">
                         </div>
                         {% endif %}
                         {% if user.show_tss %}
                         <div class="col-md-4 mb-3">
                             <label for="tss_{{ user.id }}" class="form-label">TSS (mg/L)</label>
-                            <input type="number" step="0.01" class="form-control" id="tss_{{ user.id }}" name="tss">
+                            <input type="number" step="0.01" min="0" class="form-control" id="tss_{{ user.id }}" name="tss">
+                        </div>
+                        {% endif %}
+                        {% if user.show_flow1 %}
+                        <div class="col-md-4 mb-3">
+                            <label for="flow1_{{ user.id }}" class="form-label">Flow 1 (L/min)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="flow1_{{ user.id }}" name="flow1">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="flow1_total_{{ user.id }}" class="form-label">Flow 1 Total (L)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="flow1_total_{{ user.id }}" name="flow1_total">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="flow1_daily_{{ user.id }}" class="form-label">Flow 1 Daily (L)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="flow1_daily_{{ user.id }}" name="flow1_daily">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="flow1_monthly_{{ user.id }}" class="form-label">Flow 1 Monthly (L)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="flow1_monthly_{{ user.id }}" name="flow1_monthly">
+                        </div>
+                        {% endif %}
+                        {% if user.show_flow2 %}
+                        <div class="col-md-4 mb-3">
+                            <label for="flow2_{{ user.id }}" class="form-label">Flow 2 (L/min)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="flow2_{{ user.id }}" name="flow2">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="flow2_total_{{ user.id }}" class="form-label">Flow 2 Total (L)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="flow2_total_{{ user.id }}" name="flow2_total">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="flow2_daily_{{ user.id }}" class="form-label">Flow 2 Daily (L)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="flow2_daily_{{ user.id }}" name="flow2_daily">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="flow2_monthly_{{ user.id }}" class="form-label">Flow 2 Monthly (L)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="flow2_monthly_{{ user.id }}" name="flow2_monthly">
+                        </div>
+                        {% endif %}
+                        {% if user.show_flow3 %}
+                        <div class="col-md-4 mb-3">
+                            <label for="flow3_{{ user.id }}" class="form-label">Flow 3 (L/min)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="flow3_{{ user.id }}" name="flow3">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="flow3_total_{{ user.id }}" class="form-label">Flow 3 Total (L)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="flow3_total_{{ user.id }}" name="flow3_total">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="flow3_daily_{{ user.id }}" class="form-label">Flow 3 Daily (L)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="flow3_daily_{{ user.id }}" name="flow3_daily">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="flow3_monthly_{{ user.id }}" class="form-label">Flow 3 Monthly (L)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="flow3_monthly_{{ user.id }}" name="flow3_monthly">
+                        </div>
+                        {% endif %}
+                        {% if user.show_flow4 %}
+                        <div class="col-md-4 mb-3">
+                            <label for="flow4_{{ user.id }}" class="form-label">Flow 4 (L/min)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="flow4_{{ user.id }}" name="flow4">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="flow4_total_{{ user.id }}" class="form-label">Flow 4 Total (L)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="flow4_total_{{ user.id }}" name="flow4_total">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="flow4_daily_{{ user.id }}" class="form-label">Flow 4 Daily (L)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="flow4_daily_{{ user.id }}" name="flow4_daily">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="flow4_monthly_{{ user.id }}" class="form-label">Flow 4 Monthly (L)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="flow4_monthly_{{ user.id }}" name="flow4_monthly">
+                        </div>
+                        {% endif %}
+                        {% if user.show_flow5 %}
+                        <div class="col-md-4 mb-3">
+                            <label for="flow5_{{ user.id }}" class="form-label">Flow 5 (L/min)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="flow5_{{ user.id }}" name="flow5">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="flow5_total_{{ user.id }}" class="form-label">Flow 5 Total (L)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="flow5_total_{{ user.id }}" name="flow5_total">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="flow5_daily_{{ user.id }}" class="form-label">Flow 5 Daily (L)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="flow5_daily_{{ user.id }}" name="flow5_daily">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="flow5_monthly_{{ user.id }}" class="form-label">Flow 5 Monthly (L)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="flow5_monthly_{{ user.id }}" name="flow5_monthly">
+                        </div>
+                        {% endif %}
+                        {% if user.show_flow6 %}
+                        <div class="col-md-4 mb-3">
+                            <label for="flow6_{{ user.id }}" class="form-label">Flow 6 (L/min)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="flow6_{{ user.id }}" name="flow6">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="flow6_total_{{ user.id }}" class="form-label">Flow 6 Total (L)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="flow6_total_{{ user.id }}" name="flow6_total">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="flow6_daily_{{ user.id }}" class="form-label">Flow 6 Daily (L)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="flow6_daily_{{ user.id }}" name="flow6_daily">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="flow6_monthly_{{ user.id }}" class="form-label">Flow 6 Monthly (L)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="flow6_monthly_{{ user.id }}" name="flow6_monthly">
+                        </div>
+                        {% endif %}
+                        {% if user.show_flow7 %}
+                        <div class="col-md-4 mb-3">
+                            <label for="flow7_{{ user.id }}" class="form-label">Flow 7 (L/min)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="flow7_{{ user.id }}" name="flow7">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="flow7_total_{{ user.id }}" class="form-label">Flow 7 Total (L)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="flow7_total_{{ user.id }}" name="flow7_total">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="flow7_daily_{{ user.id }}" class="form-label">Flow 7 Daily (L)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="flow7_daily_{{ user.id }}" name="flow7_daily">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="flow7_monthly_{{ user.id }}" class="form-label">Flow 7 Monthly (L)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="flow7_monthly_{{ user.id }}" name="flow7_monthly">
+                        </div>
+                        {% endif %}
+                        {% if user.show_flow8 %}
+                        <div class="col-md-4 mb-3">
+                            <label for="flow8_{{ user.id }}" class="form-label">Flow 8 (L/min)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="flow8_{{ user.id }}" name="flow8">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="flow8_total_{{ user.id }}" class="form-label">Flow 8 Total (L)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="flow8_total_{{ user.id }}" name="flow8_total">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="flow8_daily_{{ user.id }}" class="form-label">Flow 8 Daily (L)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="flow8_daily_{{ user.id }}" name="flow8_daily">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="flow8_monthly_{{ user.id }}" class="form-label">Flow 8 Monthly (L)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="flow8_monthly_{{ user.id }}" name="flow8_monthly">
+                        </div>
+                        {% endif %}
+                        {% if user.show_flow9 %}
+                        <div class="col-md-4 mb-3">
+                            <label for="flow9_{{ user.id }}" class="form-label">Flow 9 (L/min)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="flow9_{{ user.id }}" name="flow9">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="flow9_total_{{ user.id }}" class="form-label">Flow 9 Total (L)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="flow9_total_{{ user.id }}" name="flow9_total">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="flow9_daily_{{ user.id }}" class="form-label">Flow 9 Daily (L)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="flow9_daily_{{ user.id }}" name="flow9_daily">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="flow9_monthly_{{ user.id }}" class="form-label">Flow 9 Monthly (L)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="flow9_monthly_{{ user.id }}" name="flow9_monthly">
+                        </div>
+                        {% endif %}
+                        {% if user.show_flow10 %}
+                        <div class="col-md-4 mb-3">
+                            <label for="flow10_{{ user.id }}" class="form-label">Flow 10 (L/min)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="flow10_{{ user.id }}" name="flow10">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="flow10_total_{{ user.id }}" class="form-label">Flow 10 Total (L)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="flow10_total_{{ user.id }}" name="flow10_total">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="flow10_daily_{{ user.id }}" class="form-label">Flow 10 Daily (L)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="flow10_daily_{{ user.id }}" name="flow10_daily">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="flow10_monthly_{{ user.id }}" class="form-label">Flow 10 Monthly (L)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="flow10_monthly_{{ user.id }}" name="flow10_monthly">
                         </div>
                         {% endif %}
                     </div>

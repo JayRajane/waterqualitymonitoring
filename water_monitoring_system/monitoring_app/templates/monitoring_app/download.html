@@ -3,7 +3,7 @@
 {% block content %}
 <div class="sliding-header">
     <h1>Download Data for {{ user.username }}</h1>
-    <p>Select date range and parameters to download or view water quality data</p>
+    <p>Select parameters and date range to download data</p>
 </div>
 
 {% if messages %}
@@ -19,10 +19,10 @@
 
 <div class="card">
     <div class="card-header bg-primary text-white">
-        <h5 class="mb-0">Download/View Options</h5>
+        <h5 class="mb-0">Download Data</h5>
     </div>
     <div class="card-body">
-        <form id="download-form" method="post" action="{% url 'download_data' user.id %}">
+        <form id="download-form">
             {% csrf_token %}
             <div class="row mb-3">
                 <div class="col-md-6">
@@ -37,66 +37,246 @@
             
             <div class="mb-3">
                 <label for="time_interval" class="form-label">Time Interval (minutes)</label>
-                <input type="number" class="form-control" id="time_interval" name="time_interval" min="0" value="0" placeholder="Enter interval in minutes">
-                <small class="form-text text-muted">Set to 0 for all data points</small>
+                <input type="number" min="0" step="1" class="form-control" id="time_interval" name="time_interval" value="0">
+                <small class="form-text text-muted">Set to 0 to include all data points</small>
             </div>
             
             <div class="mb-3">
                 <label class="form-label">Select Parameters</label>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="select-all">
+                    <label class="form-check-label" for="select-all">Select All</label>
+                </div>
                 <div class="row">
                     {% if user.show_ph %}
-                    <div class="col-md-3">
+                    <div class="col-md-4">
                         <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="ph" id="ph" checked>
+                            <input class="form-check-input parameter-checkbox" type="checkbox" name="ph" id="ph">
                             <label class="form-check-label" for="ph">pH</label>
                         </div>
                     </div>
                     {% endif %}
-                    {% if user.show_flow1 %}
-                    <div class="col-md-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="flow1" id="flow1" checked>
-                            <label class="form-check-label" for="flow1">Flow 1</label>
-                        </div>
-                    </div>
-                    {% endif %}
-                    {% if user.show_flow2 %}
-                    <div class="col-md-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="flow2" id="flow2" checked>
-                            <label class="form-check-label" for="flow2">Flow 2</label>
-                        </div>
-                    </div>
-                    {% endif %}
-                    {% if user.show_flow3 %}
-                    <div class="col-md-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="flow3" id="flow3" checked>
-                            <label class="form-check-label" for="flow3">Flow 3</label>
-                        </div>
-                    </div>
-                    {% endif %}
                     {% if user.show_cod %}
-                    <div class="col-md-3">
+                    <div class="col-md-4">
                         <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="cod" id="cod" checked>
+                            <input class="form-check-input parameter-checkbox" type="checkbox" name="cod" id="cod">
                             <label class="form-check-label" for="cod">COD</label>
                         </div>
                     </div>
                     {% endif %}
                     {% if user.show_bod %}
-                    <div class="col-md-3">
+                    <div class="col-md-4">
                         <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="bod" id="bod" checked>
+                            <input class="form-check-input parameter-checkbox" type="checkbox" name="bod" id="bod">
                             <label class="form-check-label" for="bod">BOD</label>
                         </div>
                     </div>
                     {% endif %}
                     {% if user.show_tss %}
-                    <div class="col-md-3">
+                    <div class="col-md-4">
                         <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="tss" id="tss" checked>
+                            <input class="form-check-input parameter-checkbox" type="checkbox" name="tss" id="tss">
                             <label class="form-check-label" for="tss">TSS</label>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if user.show_flow1 %}
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input parameter-checkbox" type="checkbox" name="flow1" id="flow1">
+                            <label class="form-check-label" for="flow1">Flow 1 (L/min)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input parameter-checkbox" type="checkbox" name="flow1_total" id="flow1_total">
+                            <label class="form-check-label" for="flow1_total">Flow 1 Total (L)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input parameter-checkbox" type="checkbox" name="flow1_daily" id="flow1_daily">
+                            <label class="form-check-label" for="flow1_daily">Flow 1 Daily (L)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input parameter-checkbox" type="checkbox" name="flow1_monthly" id="flow1_monthly">
+                            <label class="form-check-label" for="flow1_monthly">Flow 1 Monthly (L)</label>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if user.show_flow2 %}
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input parameter-checkbox" type="checkbox" name="flow2" id="flow2">
+                            <label class="form-check-label" for="flow2">Flow 2 (L/min)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input parameter-checkbox" type="checkbox" name="flow2_total" id="flow2_total">
+                            <label class="form-check-label" for="flow2_total">Flow 2 Total (L)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input parameter-checkbox" type="checkbox" name="flow2_daily" id="flow2_daily">
+                            <label class="form-check-label" for="flow2_daily">Flow 2 Daily (L)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input parameter-checkbox" type="checkbox" name="flow2_monthly" id="flow2_monthly">
+                            <label class="form-check-label" for="flow2_monthly">Flow 2 Monthly (L)</label>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if user.show_flow3 %}
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input parameter-checkbox" type="checkbox" name="flow3" id="flow3">
+                            <label class="form-check-label" for="flow3">Flow 3 (L/min)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input parameter-checkbox" type="checkbox" name="flow3_total" id="flow3_total">
+                            <label class="form-check-label" for="flow3_total">Flow 3 Total (L)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input parameter-checkbox" type="checkbox" name="flow3_daily" id="flow3_daily">
+                            <label class="form-check-label" for="flow3_daily">Flow 3 Daily (L)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input parameter-checkbox" type="checkbox" name="flow3_monthly" id="flow3_monthly">
+                            <label class="form-check-label" for="flow3_monthly">Flow 3 Monthly (L)</label>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if user.show_flow4 %}
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input parameter-checkbox" type="checkbox" name="flow4" id="flow4">
+                            <label class="form-check-label" for="flow4">Flow 4 (L/min)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input parameter-checkbox" type="checkbox" name="flow4_total" id="flow4_total">
+                            <label class="form-check-label" for="flow4_total">Flow 4 Total (L)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input parameter-checkbox" type="checkbox" name="flow4_daily" id="flow4_daily">
+                            <label class="form-check-label" for="flow4_daily">Flow 4 Daily (L)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input parameter-checkbox" type="checkbox" name="flow4_monthly" id="flow4_monthly">
+                            <label class="form-check-label" for="flow4_monthly">Flow 4 Monthly (L)</label>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if user.show_flow5 %}
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input parameter-checkbox" type="checkbox" name="flow5" id="flow5">
+                            <label class="form-check-label" for="flow5">Flow 5 (L/min)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input parameter-checkbox" type="checkbox" name="flow5_total" id="flow5_total">
+                            <label class="form-check-label" for="flow5_total">Flow 5 Total (L)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input parameter-checkbox" type="checkbox" name="flow5_daily" id="flow5_daily">
+                            <label class="form-check-label" for="flow5_daily">Flow 5 Daily (L)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input parameter-checkbox" type="checkbox" name="flow5_monthly" id="flow5_monthly">
+                            <label class="form-check-label" for="flow5_monthly">Flow 5 Monthly (L)</label>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if user.show_flow6 %}
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input parameter-checkbox" type="checkbox" name="flow6" id="flow6">
+                            <label class="form-check-label" for="flow6">Flow 6 (L/min)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input parameter-checkbox" type="checkbox" name="flow6_total" id="flow6_total">
+                            <label class="form-check-label" for="flow6_total">Flow 6 Total (L)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input parameter-checkbox" type="checkbox" name="flow6_daily" id="flow6_daily">
+                            <label class="form-check-label" for="flow6_daily">Flow 6 Daily (L)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input parameter-checkbox" type="checkbox" name="flow6_monthly" id="flow6_monthly">
+                            <label class="form-check-label" for="flow6_monthly">Flow 6 Monthly (L)</label>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if user.show_flow7 %}
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input parameter-checkbox" type="checkbox" name="flow7" id="flow7">
+                            <label class="form-check-label" for="flow7">Flow 7 (L/min)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input parameter-checkbox" type="checkbox" name="flow7_total" id="flow7_total">
+                            <label class="form-check-label" for="flow7_total">Flow 7 Total (L)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input parameter-checkbox" type="checkbox" name="flow7_daily" id="flow7_daily">
+                            <label class="form-check-label" for="flow7_daily">Flow 7 Daily (L)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input parameter-checkbox" type="checkbox" name="flow7_monthly" id="flow7_monthly">
+                            <label class="form-check-label" for="flow7_monthly">Flow 7 Monthly (L)</label>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if user.show_flow8 %}
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input parameter-checkbox" type="checkbox" name="flow8" id="flow8">
+                            <label class="form-check-label" for="flow8">Flow 8 (L/min)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input parameter-checkbox" type="checkbox" name="flow8_total" id="flow8_total">
+                            <label class="form-check-label" for="flow8_total">Flow 8 Total (L)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input parameter-checkbox" type="checkbox" name="flow8_daily" id="flow8_daily">
+                            <label class="form-check-label" for="flow8_daily">Flow 8 Daily (L)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input parameter-checkbox" type="checkbox" name="flow8_monthly" id="flow8_monthly">
+                            <label class="form-check-label" for="flow8_monthly">Flow 8 Monthly (L)</label>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if user.show_flow9 %}
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input parameter-checkbox" type="checkbox" name="flow9" id="flow9">
+                            <label class="form-check-label" for="flow9">Flow 9 (L/min)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input parameter-checkbox" type="checkbox" name="flow9_total" id="flow9_total">
+                            <label class="form-check-label" for="flow9_total">Flow 9 Total (L)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input parameter-checkbox" type="checkbox" name="flow9_daily" id="flow9_daily">
+                            <label class="form-check-label" for="flow9_daily">Flow 9 Daily (L)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input parameter-checkbox" type="checkbox" name="flow9_monthly" id="flow9_monthly">
+                            <label class="form-check-label" for="flow9_monthly">Flow 9 Monthly (L)</label>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if user.show_flow10 %}
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input parameter-checkbox" type="checkbox" name="flow10" id="flow10">
+                            <label class="form-check-label" for="flow10">Flow 10 (L/min)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input parameter-checkbox" type="checkbox" name="flow10_total" id="flow10_total">
+                            <label class="form-check-label" for="flow10_total">Flow 10 Total (L)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input parameter-checkbox" type="checkbox" name="flow10_daily" id="flow10_daily">
+                            <label class="form-check-label" for="flow10_daily">Flow 10 Daily (L)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input parameter-checkbox" type="checkbox" name="flow10_monthly" id="flow10_monthly">
+                            <label class="form-check-label" for="flow10_monthly">Flow 10 Monthly (L)</label>
                         </div>
                     </div>
                     {% endif %}
@@ -115,208 +295,179 @@
                 </div>
             </div>
             
-            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                <button type="submit" class="btn btn-primary">Download</button>
-                <button type="button" id="view-data-btn" class="btn btn-info">View Data</button>
-                <a href="{% url 'dashboard' %}" class="btn btn-secondary">Cancel</a>
+            <div class="d-grid gap-2">
+                <button type="button" class="btn btn-primary" id="download-btn">Download</button>
+                <button type="button" class="btn btn-info" id="preview-btn">Preview</button>
+                <a href="{% url 'user_management' %}" class="btn btn-secondary">Cancel</a>
             </div>
         </form>
     </div>
 </div>
 
-<div id="data-view" class="mt-4" style="display: none;">
-    <div class="card">
-        <div class="card-header bg-primary text-white">
-            <h5 class="mb-0">Selected Data</h5>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-striped table-hover" id="data-table">
-                    <thead>
-                        <tr id="table-header"></tr>
-                    </thead>
-                    <tbody id="data-body"></tbody>
-                </table>
-            </div>
-        </div>
-    </div>
+<div class="mt-4" id="preview-section" style="display: none;">
+    <h3>Preview Data</h3>
+    <table class="table table-striped table-bordered" id="preview-table">
+        <thead></thead>
+        <tbody></tbody>
+    </table>
 </div>
+
+<div class="text-center mt-4">
+    <a href="{% url 'download_user_credentials' user.id %}" class="btn btn-info">Download User Credentials</a>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
 $(document).ready(function() {
-    function formatValue(value, unit = '', nullText = '-', forceDecimals = false) {
-        if (value === null || value === undefined || value === '') {
-            return nullText;
-        }
-        const numValue = typeof value === 'string' ? parseFloat(value) : value;
-        if (forceDecimals || unit.includes('L/min') || unit.includes('mg/L')) {
-            return `${numValue.toFixed(2)} ${unit}`.trim();
-        }
-        return `${numValue} ${unit}`.trim();
-    }
+    // Select All checkbox functionality
+    $('#select-all').on('change', function() {
+        $('.parameter-checkbox').prop('checked', this.checked);
+    });
 
-    $('#view-data-btn').click(function() {
-        const startDate = $('#start_date').val();
-        const endDate = $('#end_date').val();
-        const timeInterval = $('#time_interval').val();
-        const userId = {{ user.id | safe }};
+    // Preview button handler
+    $('#preview-btn').on('click', function() {
+        const formData = new FormData($('#download-form')[0]);
+        const data = {};
+        formData.forEach((value, key) => {
+            if (key === 'csrfmiddlewaretoken') return;
+            if (key === 'format') return;
+            if (['ph', 'cod', 'bod', 'tss'].includes(key) || key.startsWith('flow')) {
+                if (value === 'on') data[key] = true;
+            } else {
+                data[key] = value;
+            }
+        });
 
-        // Validate inputs
-        if (!startDate || !endDate) {
+        if (!data.start_date || !data.end_date) {
             alert('Please select both start and end dates.');
             return;
         }
-        if (!userId) {
-            alert('User ID is missing. Please reload the page.');
-            return;
-        }
-        try {
-            const start = new Date(startDate);
-            const end = new Date(endDate);
-            if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-                alert('Invalid date format. Please use YYYY-MM-DD.');
-                return;
-            }
-            if (end < start) {
-                alert('End date must be after start date.');
-                return;
-            }
-        } catch (e) {
-            alert('Invalid date format. Please use YYYY-MM-DD.');
-            return;
-        }
 
-        const parameters = [];
-        $('input[type=checkbox]:checked').each(function() {
-            parameters.push($(this).attr('name'));
-        });
-        if (parameters.length === 0) {
+        if (!Object.keys(data).some(key => ['ph', 'cod', 'bod', 'tss'].includes(key) || key.startsWith('flow'))) {
             alert('Please select at least one parameter.');
             return;
         }
 
-        const queryParams = new URLSearchParams({
-            user_id: userId,
-            start_date: startDate,
-            end_date: endDate,
-            time_interval: timeInterval
-        });
-        const wqUrl = `/api/water-quality/date_range/?${queryParams.toString()}`;
-        const readingsUrl = `/api/readings/date_range/?${queryParams.toString()}`;
-        console.log('Water Quality URL:', wqUrl);
-        console.log('Readings URL:', readingsUrl);
-
         $.ajax({
-            url: wqUrl,
-            method: 'GET',
+            url: '{% url "preview_data" user.id %}',
+            method: 'POST',
             headers: {
-                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+                'X-CSRFToken': $('input[name="csrfmiddlewaretoken"]').val()
             },
-            success: function(wqData) {
-                console.log('Water Quality Data:', wqData);
-                $.ajax({
-                    url: readingsUrl,
-                    method: 'GET',
-                    headers: {
-                        'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
-                    },
-                    success: function(flowData) {
-                        console.log('Flow Data:', flowData);
-                        $('#data-view').show();
-                        console.log('Data view shown');
-                        const thead = $('#table-header');
-                        const tbody = $('#data-body');
-                        thead.empty();
-                        tbody.empty();
+            contentType: 'application/json',
+            data: JSON.stringify(data),
+            success: function(response) {
+                if (response.error) {
+                    alert(response.error);
+                    $('#preview-section').hide();
+                    return;
+                }
+                const fields = response.fields;
+                const data = response.data;
 
-                        if (!wqData.length && !flowData.length) {
-                            tbody.append('<tr><td colspan="100%" class="text-center">No data available for the selected parameters and date range</td></tr>');
-                            return;
-                        }
-
-                        // Set table headers
-                        thead.append('<th>Date/Time</th>');
-                        if (parameters.includes('ph')) thead.append('<th>pH</th>');
-                        if (parameters.includes('flow1')) thead.append('<th>Flow 1 (L/min)</th>');
-                        if (parameters.includes('flow2')) thead.append('<th>Flow 2 (L/min)</th>');
-                        if (parameters.includes('flow3')) thead.append('<th>Flow 3 (L/min)</th>');
-                        if (parameters.includes('cod')) thead.append('<th>COD (mg/L)</th>');
-                        if (parameters.includes('bod')) thead.append('<th>BOD (mg/L)</th>');
-                        if (parameters.includes('tss')) thead.append('<th>TSS (mg/L)</th>');
-
-                        // Combine data
-                        let combinedData = [];
-                        wqData.forEach(wq => {
-                            combinedData.push({
-                                timestamp: new Date(wq.timestamp),
-                                ph: wq.ph,
-                                cod: wq.cod,
-                                bod: wq.bod,
-                                tss: wq.tss,
-                                flow1: null,
-                                flow2: null,
-                                flow3: null
-                            });
-                        });
-                        flowData.forEach(flow => {
-                            let entry = combinedData.find(e => Math.abs(e.timestamp - new Date(flow.recorded_at)) < 1000);
-                            if (!entry) {
-                                entry = {
-                                    timestamp: new Date(flow.recorded_at),
-                                    ph: null,
-                                    cod: null,
-                                    bod: null,
-                                    tss: null,
-                                    flow1: null,
-                                    flow2: null,
-                                    flow3: null
-                                };
-                                combinedData.push(entry);
-                            }
-                            entry[flow.parameter] = flow.value;
-                        });
-                        combinedData.sort((a, b) => a.timestamp - b.timestamp);
-                        console.log('Combined Data:', combinedData);
-
-                        // Populate table
-                        combinedData.forEach(item => {
-                            const row = $('<tr></tr>');
-                            row.append(`<td>${item.timestamp.toLocaleString()}</td>`);
-                            if (parameters.includes('ph')) row.append(`<td>${formatValue(item.ph)}</td>`);
-                            if (parameters.includes('flow1')) row.append(`<td>${formatValue(item.flow1, 'L/min', '-', true)}</td>`);
-                            if (parameters.includes('flow2')) row.append(`<td>${formatValue(item.flow2, 'L/min', '-', true)}</td>`);
-                            if (parameters.includes('flow3')) row.append(`<td>${formatValue(item.flow3, 'L/min', '-', true)}</td>`);
-                            if (parameters.includes('cod')) row.append(`<td>${formatValue(item.cod, 'mg/L', '-', true)}</td>`);
-                            if (parameters.includes('bod')) row.append(`<td>${formatValue(item.bod, 'mg/L', '-', true)}</td>`);
-                            if (parameters.includes('tss')) row.append(`<td>${formatValue(item.tss, 'mg/L', '-', true)}</td>`);
-                            tbody.append(row);
-                        });
-                    },
-                    error: function(xhr, status, error) {
-                        console.error('Flow Data Error:', xhr.status, xhr.responseText);
-                        alert(`Error fetching flow data: ${xhr.responseText || error}`);
+                // Build table headers
+                const thead = $('#preview-table thead');
+                thead.empty();
+                const headerRow = $('<tr></tr>');
+                headerRow.append('<th>Date/Time</th>');
+                fields.forEach(field => {
+                    let unit = '';
+                    if (field.startsWith('flow') && !['total', 'daily', 'monthly'].some(s => field.includes(s))) {
+                        unit = ' (L/min)';
+                    } else if (field.startsWith('flow')) {
+                        unit = ' (L)';
+                    } else if (['cod', 'bod', 'tss'].includes(field)) {
+                        unit = ' (mg/L)';
                     }
+                    headerRow.append(`<th>${field.toUpperCase()}${unit}</th>`);
                 });
+                thead.append(headerRow);
+
+                // Build table body
+                const tbody = $('#preview-table tbody');
+                tbody.empty();
+                data.forEach(row => {
+                    const tr = $('<tr></tr>');
+                    tr.append(`<td>${new Date(row.timestamp).toLocaleString()}</td>`);
+                    fields.forEach(field => {
+                        const value = row[field];
+                        tr.append(`<td>${value !== undefined && value !== null ? Number(value).toFixed(2) : '-'}</td>`);
+                    });
+                    tbody.append(tr);
+                });
+
+                $('#preview-section').show();
             },
-            error: function(xhr, status, error) {
-                console.error('Water Quality Data Error:', xhr.status, xhr.responseText);
-                alert(`Error fetching water quality data: ${xhr.responseText || error}`);
+            error: function(xhr) {
+                let errorMsg = 'Error fetching preview data.';
+                if (xhr.responseJSON && xhr.responseJSON.error) {
+                    errorMsg = xhr.responseJSON.error;
+                }
+                alert(errorMsg);
+                $('#preview-section').hide();
             }
         });
     });
 
-    $('#download-form').submit(function(e) {
-        const parameters = [];
-        $('input[type=checkbox]:checked').each(function() {
-            parameters.push($(this).attr('name'));
+    // Download button handler
+    $('#download-btn').on('click', function() {
+        const formData = new FormData($('#download-form')[0]);
+        const data = {};
+        formData.forEach((value, key) => {
+            if (key === 'csrfmiddlewaretoken') return;
+            if (['ph', 'cod', 'bod', 'tss'].includes(key) || key.startsWith('flow')) {
+                if (value === 'on') data[key] = true;
+            } else {
+                data[key] = value;
+            }
         });
-        if (parameters.length === 0) {
-            e.preventDefault();
-            alert('Please select at least one parameter.');
+
+        if (!data.start_date || !data.end_date) {
+            alert('Please select both start and end dates.');
+            return;
         }
+
+        if (!Object.keys(data).some(key => ['ph', 'cod', 'bod', 'tss'].includes(key) || key.startsWith('flow'))) {
+            alert('Please select at least one parameter.');
+            return;
+        }
+
+        $.ajax({
+            url: '{% url "download_data" user.id %}',
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': $('input[name="csrfmiddlewaretoken"]').val()
+            },
+            contentType: 'application/json',
+            data: JSON.stringify(data),
+            xhrFields: {
+                responseType: 'blob'
+            },
+            success: function(data, status, xhr) {
+                const contentType = xhr.getResponseHeader('Content-Type');
+                const contentDisposition = xhr.getResponseHeader('Content-Disposition');
+                const filename = contentDisposition.match(/filename="(.+)"/)[1];
+
+                const blob = new Blob([data], { type: contentType });
+                const link = document.createElement('a');
+                link.href = window.URL.createObjectURL(blob);
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            },
+            error: function(xhr) {
+                let errorMsg = 'Error downloading file.';
+                if (xhr.responseJSON && xhr.responseJSON.error) {
+                    errorMsg = xhr.responseJSON.error;
+                } else if (xhr.responseText) {
+                    errorMsg = xhr.responseText;
+                }
+                alert(errorMsg);
+            }
+        });
     });
 });
 </script>

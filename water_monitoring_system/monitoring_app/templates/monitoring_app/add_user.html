@@ -3,11 +3,10 @@
 
 {% block content %}
 <div class="sliding-header">
-    <h1>Add New User</h1>
-    <p>Create a new user account</p>
+    <h1>{% if edit_mode %}Edit User{% else %}Add New User{% endif %}</h1>
+    <p>{% if edit_mode %}Update user account details{% else %}Create a new user account{% endif %}</p>
 </div>
 
-<!-- Display messages -->
 {% if messages %}
     <div class="messages mb-4">
         {% for message in messages %}
@@ -76,44 +75,86 @@
                     <div class="row">
                         <div class="col-md-3">
                             <div class="form-check">
-                                {{ form.show_ph }}
+                                {{ form.show_ph|add_class:"form-check-input" }}
                                 <label class="form-check-label" for="{{ form.show_ph.id_for_label }}">pH</label>
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div class="form-check">
-                                {{ form.show_flow1 }}
-                                <label class="form-check-label" for="{{ form.show_flow1.id_for_label }}">Flow 1</label>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="form-check">
-                                {{ form.show_flow2 }}
-                                <label class="form-check-label" for="{{ form.show_flow2.id_for_label }}">Flow 2</label>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="form-check">
-                                {{ form.show_flow3 }}
-                                <label class="form-check-label" for="{{ form.show_flow3.id_for_label }}">Flow 3</label>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="form-check">
-                                {{ form.show_cod }}
+                                {{ form.show_cod|add_class:"form-check-input" }}
                                 <label class="form-check-label" for="{{ form.show_cod.id_for_label }}">COD</label>
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div class="form-check">
-                                {{ form.show_bod }}
+                                {{ form.show_bod|add_class:"form-check-input" }}
                                 <label class="form-check-label" for="{{ form.show_bod.id_for_label }}">BOD</label>
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div class="form-check">
-                                {{ form.show_tss }}
+                                {{ form.show_tss|add_class:"form-check-input" }}
                                 <label class="form-check-label" for="{{ form.show_tss.id_for_label }}">TSS</label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-check">
+                                {{ form.show_flow1|add_class:"form-check-input" }}
+                                <label class="form-check-label" for="{{ form.show_flow1.id_for_label }}">Flow 1</label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-check">
+                                {{ form.show_flow2|add_class:"form-check-input" }}
+                                <label class="form-check-label" for="{{ form.show_flow2.id_for_label }}">Flow 2</label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-check">
+                                {{ form.show_flow3|add_class:"form-check-input" }}
+                                <label class="form-check-label" for="{{ form.show_flow3.id_for_label }}">Flow 3</label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-check">
+                                {{ form.show_flow4|add_class:"form-check-input" }}
+                                <label class="form-check-label" for="{{ form.show_flow4.id_for_label }}">Flow 4</label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-check">
+                                {{ form.show_flow5|add_class:"form-check-input" }}
+                                <label class="form-check-label" for="{{ form.show_flow5.id_for_label }}">Flow 5</label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-check">
+                                {{ form.show_flow6|add_class:"form-check-input" }}
+                                <label class="form-check-label" for="{{ form.show_flow6.id_for_label }}">Flow 6</label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-check">
+                                {{ form.show_flow7|add_class:"form-check-input" }}
+                                <label class="form-check-label" for="{{ form.show_flow7.id_for_label }}">Flow 7</label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-check">
+                                {{ form.show_flow8|add_class:"form-check-input" }}
+                                <label class="form-check-label" for="{{ form.show_flow8.id_for_label }}">Flow 8</label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-check">
+                                {{ form.show_flow9|add_class:"form-check-input" }}
+                                <label class="form-check-label" for="{{ form.show_flow9.id_for_label }}">Flow 9</label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-check">
+                                {{ form.show_flow10|add_class:"form-check-input" }}
+                                <label class="form-check-label" for="{{ form.show_flow10.id_for_label }}">Flow 10</label>
                             </div>
                         </div>
                     </div>
@@ -132,7 +173,7 @@
             </div>
             
             <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                <button type="submit" class="btn btn-primary">Create User</button>
+                <button type="submit" class="btn btn-primary">{% if edit_mode %}Update User{% else %}Create User{% endif %}</button>
                 <a href="{% url 'user_management' %}" class="btn btn-secondary">Cancel</a>
             </div>
         </form>
@@ -142,28 +183,13 @@
 {% block extra_js %}
 <script>
 $(document).ready(function() {
-    // When any flow checkbox changes, update respective daily/monthly/total flow checkboxes
-    $('#id_show_flow1').change(function() {
+    {% for i in "12345678910" %}
+    $('#id_show_flow{{ i }}').change(function() {
         if ($(this).is(':checked')) {
-            $('#id_show_daily_flow1').prop('checked', true);
-            $('#id_show_monthly_flow1').prop('checked', true);
-            $('#id_show_total_flow1').prop('checked', true);
+            // Optionally, handle additional logic for flow-related checkboxes if needed
         }
     });
-    $('#id_show_flow2').change(function() {
-        if ($(this).is(':checked')) {
-            $('#id_show_daily_flow2').prop('checked', true);
-            $('#id_show_monthly_flow2').prop('checked', true);
-            $('#id_show_total_flow2').prop('checked', true);
-        }
-    });
-    $('#id_show_flow3').change(function() {
-        if ($(this).is(':checked')) {
-            $('#id_show_daily_flow3').prop('checked', true);
-            $('#id_show_monthly_flow3').prop('checked', true);
-            $('#id_show_total_flow3').prop('checked', true);
-        }
-    });
+    {% endfor %}
 });
 </script>
 {% endblock %}

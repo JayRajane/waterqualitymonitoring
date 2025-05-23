@@ -4,12 +4,12 @@ import time
 import re
 
 # Django server URL
-BASE_URL = 'http://127.0.0.1:8000'
+BASE_URL = 'http://192.168.1.101:8000'
 
 # Login credentials
 LOGIN_URL = f'{BASE_URL}/accounts/login/'
-USERNAME = 'abhishek'
-PASSWORD = 'abhishek@123'
+USERNAME = 'shreni'
+PASSWORD = 'shreni@123'
 
 # API endpoint after login
 API_URL = f'{BASE_URL}/api/water-quality/submit_data/'
@@ -62,14 +62,9 @@ def login():
 def generate_random_data():
     """Generates random environmental sensor data."""
     return {
-        "user": 5,  # Use the correct user ID here
+        "user": 2,  # Use the correct user ID here
         "ph": round(random.uniform(6.5, 8.5), 2),
-        "flow1": round(random.uniform(10, 100), 2),
-        "flow2": round(random.uniform(10, 100), 2),
-        "flow3": round(random.uniform(10, 100), 2),
-        "cod": random.randint(20, 300),
-        "bod": random.randint(5, 80),
-        "tss": random.randint(10, 200),
+
     }
 
 def send_data():
