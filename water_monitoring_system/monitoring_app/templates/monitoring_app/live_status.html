@@ -359,7 +359,7 @@
 <script>
 $(document).ready(function() {
     function updateLiveData() {
-        console.log('Fetching water quality data...'); // Debug log
+        console.log('Fetching water quality data...');
         $.ajax({
             url: '{% url "water-quality-latest" %}?user_id={{ user.id }}',
             method: 'GET',
@@ -367,7 +367,7 @@ $(document).ready(function() {
                 'X-CSRFToken': '{{ csrf_token }}'
             },
             success: function(data) {
-                console.log('Water quality data:', data); // Debug log
+                console.log('Water quality data:', data);
                 $('#connection-error').hide();
                 $('#phValue').text(data.ph !== null ? parseFloat(data.ph).toFixed(2) : '-');
                 $('#codValue').text(data.cod !== null ? parseFloat(data.cod).toFixed(2) : '-');
@@ -376,12 +376,12 @@ $(document).ready(function() {
                 $('#last-updated').text('Last updated: ' + new Date().toLocaleString());
             },
             error: function(xhr, status, error) {
-                console.error('Water quality AJAX error:', status, error, xhr.responseText); // Debug log
+                console.error('Water quality AJAX error:', status, error, xhr.responseText);
                 $('#connection-error').show();
             }
         });
 
-        console.log('Fetching readings data...'); // Debug log
+        console.log('Fetching readings data...');
         $.ajax({
             url: '{% url "readings-latest" %}?user_id={{ user.id }}',
             method: 'GET',
@@ -389,7 +389,7 @@ $(document).ready(function() {
                 'X-CSRFToken': '{{ csrf_token }}'
             },
             success: function(data) {
-                console.log('Readings data:', data); // Debug log
+                console.log('Readings data:', data);
                 $('#connection-error').hide();
                 {% if user.show_flow1 %}
                 $('#flow1Value').text(data.flow1 ? parseFloat(data.flow1.value).toFixed(2) : '-');
@@ -453,8 +453,25 @@ $(document).ready(function() {
                 {% endif %}
             },
             error: function(xhr, status, error) {
-                console.error('Readings AJAX error:', status, error, xhr.responseText); // Debug log
+                console.error('Readings AJAX error:', status, error, xhr.responseText);
                 $('#connection-error').show();
+            }
+        });
+
+        // Add this new AJAX call to update recent data table
+        $.ajax({
+            url: '{% url "live_status" user.id %}',
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            success: function(data) {
+                // Parse the response and update the table
+                var $newContent = $(data).find('#recent-data-table').html();
+                $('#recent-data-table').html($newContent);
+            },
+            error: function(xhr, status, error) {
+                console.error('Recent data AJAX error:', status, error, xhr.responseText);
             }
         });
     }
