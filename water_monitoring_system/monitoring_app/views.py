@@ -25,6 +25,8 @@ import json
 from django.contrib.auth.views import LoginView
 from django.urls import reverse
 from django.db.models import Sum  # Added for aggregating flow values
+import pandas as pd  # Added import to fix 'pd' not defined error
+
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -746,68 +748,115 @@ def preview_data(request, user_id):
             end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
             if (end_date - start_date).days > 31:
                 return JsonResponse({"error": "Date range cannot exceed 31 days"}, status=400)
+            
+            # Get regular fields
             fields = [field for field in ['ph', 'cod', 'bod', 'tss'] +
                       [f'flow{i}' for i in range(1, 11)] +
                       [f'flow{i}_total' for i in range(1, 11)] +
                       [f'flow{i}_daily' for i in range(1, 11)] +
                       [f'flow{i}_monthly' for i in range(1, 11)] if body.get(field)]
-            if not fields:
+            
+            # Get daily flow total fields
+            daily_flow_fields = [f'daily_flow{i}' for i in range(1, 11) if body.get(f'daily_flow{i}')]
+            
+            if not fields and not daily_flow_fields:
                 return JsonResponse({"error": "Please select at least one parameter"}, status=400)
-            wq_queryset = WaterQualityData.objects.filter(
-                user=user,
-                timestamp__date__gte=start_date,
-                timestamp__date__lte=end_date
-            ).order_by('timestamp').prefetch_related('user')
-            flow_queryset = Reading.objects.filter(
-                user=user,
-                parameter__in=[f'flow{i}' for i in range(1, 11)] +
-                              [f'flow{i}_total' for i in range(1, 11)] +
-                              [f'flow{i}_daily' for i in range(1, 11)] +
-                              [f'flow{i}_monthly' for i in range(1, 11)],
-                recorded_at__date__gte=start_date,
-                recorded_at__date__lte=end_date
-            ).order_by('recorded_at').prefetch_related('user', 'machine')
-            if time_interval > 0:
-                interval_seconds = time_interval * 60
-                filtered_wq = []
-                filtered_flow = []
-                last_wq_timestamp = last_flow_timestamp = None
-                for item in wq_queryset:
-                    if last_wq_timestamp is None or (item.timestamp - last_wq_timestamp).total_seconds() >= interval_seconds:
-                        filtered_wq.append(item)
-                        last_wq_timestamp = item.timestamp
-                for item in flow_queryset:
-                    if last_flow_timestamp is None or (item.recorded_at - last_flow_timestamp).total_seconds() >= interval_seconds:
-                        filtered_flow.append(item)
-                        last_flow_timestamp = item.recorded_at
-                wq_queryset = filtered_wq
-                flow_queryset = filtered_flow
+            
             combined_data = {}
-            wq_data = list(wq_queryset)
-            flow_data = list(flow_queryset)
-            for item in wq_data:
-                rounded_ts = item.timestamp.replace(microsecond=0)
-                if rounded_ts not in combined_data:
-                    combined_data[rounded_ts] = {'timestamp': rounded_ts.isoformat()}
-                if 'ph' in fields:
-                    combined_data[rounded_ts]['ph'] = item.ph
-                if 'cod' in fields:
-                    combined_data[rounded_ts]['cod'] = item.cod
-                if 'bod' in fields:
-                    combined_data[rounded_ts]['bod'] = item.bod
-                if 'tss' in fields:
-                    combined_data[rounded_ts]['tss'] = item.tss
-            for item in flow_data:
-                rounded_ts = item.recorded_at.replace(microsecond=0)
-                if rounded_ts not in combined_data:
-                    combined_data[rounded_ts] = {'timestamp': rounded_ts.isoformat()}
-                if item.parameter in fields:
-                    combined_data[rounded_ts][item.parameter] = item.value
+            
+            # Process regular data if any fields selected
+            if fields:
+                wq_queryset = WaterQualityData.objects.filter(
+                    user=user,
+                    timestamp__date__gte=start_date,
+                    timestamp__date__lte=end_date
+                ).order_by('timestamp').prefetch_related('user')
+                
+                flow_queryset = Reading.objects.filter(
+                    user=user,
+                    parameter__in=[f'flow{i}' for i in range(1, 11)] +
+                                  [f'flow{i}_total' for i in range(1, 11)] +
+                                  [f'flow{i}_daily' for i in range(1, 11)] +
+                                  [f'flow{i}_monthly' for i in range(1, 11)],
+                    recorded_at__date__gte=start_date,
+                    recorded_at__date__lte=end_date
+                ).order_by('recorded_at').prefetch_related('user', 'machine')
+                
+                if time_interval > 0:
+                    interval_seconds = time_interval * 60
+                    filtered_wq = []
+                    filtered_flow = []
+                    last_wq_timestamp = last_flow_timestamp = None
+                    for item in wq_queryset:
+                        if last_wq_timestamp is None or (item.timestamp - last_wq_timestamp).total_seconds() >= interval_seconds:
+                            filtered_wq.append(item)
+                            last_wq_timestamp = item.timestamp
+                    for item in flow_queryset:
+                        if last_flow_timestamp is None or (item.recorded_at - last_flow_timestamp).total_seconds() >= interval_seconds:
+                            filtered_flow.append(item)
+                            last_flow_timestamp = item.recorded_at
+                    wq_queryset = filtered_wq
+                    flow_queryset = filtered_flow
+                
+                wq_data = list(wq_queryset)
+                flow_data = list(flow_queryset)
+                
+                for item in wq_data:
+                    rounded_ts = item.timestamp.replace(microsecond=0)
+                    if rounded_ts not in combined_data:
+                        combined_data[rounded_ts] = {'timestamp': rounded_ts.isoformat()}
+                    if 'ph' in fields:
+                        combined_data[rounded_ts]['ph'] = item.ph
+                    if 'cod' in fields:
+                        combined_data[rounded_ts]['cod'] = item.cod
+                    if 'bod' in fields:
+                        combined_data[rounded_ts]['bod'] = item.bod
+                    if 'tss' in fields:
+                        combined_data[rounded_ts]['tss'] = item.tss
+                
+                for item in flow_data:
+                    rounded_ts = item.recorded_at.replace(microsecond=0)
+                    if rounded_ts not in combined_data:
+                        combined_data[rounded_ts] = {'timestamp': rounded_ts.isoformat()}
+                    if item.parameter in fields:
+                        combined_data[rounded_ts][item.parameter] = item.value
+            
+            # Process daily flow totals if any selected
+            if daily_flow_fields:
+                daily_flow_data = {}
+                for i in range(1, 11):
+                    if f'daily_flow{i}' in daily_flow_fields:
+                        # Get the daily readings for this flow meter
+                        daily_readings = Reading.objects.filter(
+                            user=user,
+                            parameter=f'flow{i}_daily',
+                            recorded_at__date__gte=start_date,
+                            recorded_at__date__lte=end_date
+                        ).order_by('recorded_at')
+                        
+                        for reading in daily_readings:
+                            # Use date only (midnight) as the key for daily totals
+                            date_key = reading.recorded_at.replace(hour=0, minute=0, second=0, microsecond=0)
+                            if date_key not in daily_flow_data:
+                                daily_flow_data[date_key] = {'timestamp': date_key.isoformat()}
+                            daily_flow_data[date_key][f'daily_flow{i}'] = reading.value
+                
+                # Merge with existing data
+                for ts, data in daily_flow_data.items():
+                    if ts in combined_data:
+                        combined_data[ts].update(data)
+                    else:
+                        combined_data[ts] = data
+            
             combined_data_list = sorted(combined_data.values(), key=lambda x: x['timestamp'])
             if not combined_data_list:
                 return JsonResponse({"error": "No data available for the selected parameters and date range"}, status=400)
+            
+            # Prepare the fields to return (combine regular fields and daily flow fields)
+            all_fields = fields + daily_flow_fields
+            
             return JsonResponse({
-                'fields': fields,
+                'fields': all_fields,
                 'data': combined_data_list
             })
         except User.DoesNotExist:
@@ -827,145 +876,189 @@ def download_data(request, user_id):
             body = json.loads(request.body)
             start_date_str = body.get('start_date')
             end_date_str = body.get('end_date')
-            file_format = body.get('format')
+            file_format = body.get('format', 'excel')
             time_interval = int(body.get('time_interval', 0))
             start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
             end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+            
             if (end_date - start_date).days > 31:
                 return JsonResponse({"error": "Date range cannot exceed 31 days"}, status=400)
+            
+            # Get regular fields
             fields = [field for field in ['ph', 'cod', 'bod', 'tss'] +
                       [f'flow{i}' for i in range(1, 11)] +
                       [f'flow{i}_total' for i in range(1, 11)] +
                       [f'flow{i}_daily' for i in range(1, 11)] +
                       [f'flow{i}_monthly' for i in range(1, 11)] if body.get(field)]
-            if not fields:
+            
+            # Get daily flow total fields
+            daily_flow_fields = [f'daily_flow{i}' for i in range(1, 11) if body.get(f'daily_flow{i}')]
+            
+            if not fields and not daily_flow_fields:
                 return JsonResponse({"error": "Please select at least one parameter"}, status=400)
-            wq_queryset = WaterQualityData.objects.filter(
-                user=user,
-                timestamp__date__gte=start_date,
-                timestamp__date__lte=end_date
-            ).order_by('timestamp').prefetch_related('user')
-            flow_queryset = Reading.objects.filter(
-                user=user,
-                parameter__in=[f'flow{i}' for i in range(1, 11)] +
-                              [f'flow{i}_total' for i in range(1, 11)] +
-                              [f'flow{i}_daily' for i in range(1, 11)] +
-                              [f'flow{i}_monthly' for i in range(1, 11)],
-                recorded_at__date__gte=start_date,
-                recorded_at__date__lte=end_date
-            ).order_by('recorded_at').prefetch_related('user', 'machine')
-            if time_interval > 0:
-                interval_seconds = time_interval * 60
-                filtered_wq = []
-                filtered_flow = []
-                last_wq_timestamp = last_flow_timestamp = None
-                for item in wq_queryset:
-                    if last_wq_timestamp is None or (item.timestamp - last_wq_timestamp).total_seconds() >= interval_seconds:
-                        filtered_wq.append(item)
-                        last_wq_timestamp = item.timestamp
-                for item in flow_queryset:
-                    if last_flow_timestamp is None or (item.recorded_at - last_flow_timestamp).total_seconds() >= interval_seconds:
-                        filtered_flow.append(item)
-                        last_flow_timestamp = item.recorded_at
-                wq_queryset = filtered_wq
-                flow_queryset = filtered_flow
+            
             combined_data = {}
-            wq_data = list(wq_queryset)
-            flow_data = list(flow_queryset)
-            for item in wq_data:
-                rounded_ts = item.timestamp.replace(microsecond=0)
-                if rounded_ts not in combined_data:
-                    combined_data[rounded_ts] = {'timestamp': rounded_ts}
-                if 'ph' in fields:
-                    combined_data[rounded_ts]['ph'] = item.ph
-                if 'cod' in fields:
-                    combined_data[rounded_ts]['cod'] = item.cod
-                if 'bod' in fields:
-                    combined_data[rounded_ts]['bod'] = item.bod
-                if 'tss' in fields:
-                    combined_data[rounded_ts]['tss'] = item.tss
-            for item in flow_data:
-                rounded_ts = item.recorded_at.replace(microsecond=0)
-                if rounded_ts not in combined_data:
-                    combined_data[rounded_ts] = {'timestamp': rounded_ts}
-                if item.parameter in fields:
-                    combined_data[rounded_ts][item.parameter] = item.value
+            
+            # Process regular data if any fields selected
+            if fields:
+                wq_queryset = WaterQualityData.objects.filter(
+                    user=user,
+                    timestamp__date__gte=start_date,
+                    timestamp__date__lte=end_date
+                ).order_by('timestamp').prefetch_related('user')
+                
+                flow_queryset = Reading.objects.filter(
+                    user=user,
+                    parameter__in=[f'flow{i}' for i in range(1, 11)] +
+                                  [f'flow{i}_total' for i in range(1, 11)] +
+                                  [f'flow{i}_daily' for i in range(1, 11)] +
+                                  [f'flow{i}_monthly' for i in range(1, 11)],
+                    recorded_at__date__gte=start_date,
+                    recorded_at__date__lte=end_date
+                ).order_by('recorded_at').prefetch_related('user', 'machine')
+                
+                if time_interval > 0:
+                    interval_seconds = time_interval * 60
+                    filtered_wq = []
+                    filtered_flow = []
+                    last_wq_timestamp = last_flow_timestamp = None
+                    for item in wq_queryset:
+                        if last_wq_timestamp is None or (item.timestamp - last_wq_timestamp).total_seconds() >= interval_seconds:
+                            filtered_wq.append(item)
+                            last_wq_timestamp = item.timestamp
+                    for item in flow_queryset:
+                        if last_flow_timestamp is None or (item.recorded_at - last_flow_timestamp).total_seconds() >= interval_seconds:
+                            filtered_flow.append(item)
+                            last_flow_timestamp = item.recorded_at
+                    wq_queryset = filtered_wq
+                    flow_queryset = filtered_flow
+                
+                wq_data = list(wq_queryset)
+                flow_data = list(flow_queryset)
+                
+                for item in wq_data:
+                    rounded_ts = item.timestamp.replace(microsecond=0)
+                    if rounded_ts not in combined_data:
+                        combined_data[rounded_ts] = {'timestamp': rounded_ts.isoformat()}
+                    if 'ph' in fields:
+                        combined_data[rounded_ts]['ph'] = item.ph
+                    if 'cod' in fields:
+                        combined_data[rounded_ts]['cod'] = item.cod
+                    if 'bod' in fields:
+                        combined_data[rounded_ts]['bod'] = item.bod
+                    if 'tss' in fields:
+                        combined_data[rounded_ts]['tss'] = item.tss
+                
+                for item in flow_data:
+                    rounded_ts = item.recorded_at.replace(microsecond=0)
+                    if rounded_ts not in combined_data:
+                        combined_data[rounded_ts] = {'timestamp': rounded_ts.isoformat()}
+                    if item.parameter in fields:
+                        combined_data[rounded_ts][item.parameter] = item.value
+            
+            # Process daily flow totals if any selected
+            if daily_flow_fields:
+                daily_flow_data = {}
+                for i in range(1, 11):
+                    if f'daily_flow{i}' in daily_flow_fields:
+                        daily_readings = Reading.objects.filter(
+                            user=user,
+                            parameter=f'flow{i}_daily',
+                            recorded_at__date__gte=start_date,
+                            recorded_at__date__lte=end_date
+                        ).order_by('recorded_at')
+                        
+                        for reading in daily_readings:
+                            date_key = reading.recorded_at.replace(hour=0, minute=0, second=0, microsecond=0)
+                            if date_key not in daily_flow_data:
+                                daily_flow_data[date_key] = {'timestamp': date_key.isoformat()}
+                            daily_flow_data[date_key][f'daily_flow{i}'] = reading.value
+                
+                for ts, data in daily_flow_data.items():
+                    if ts in combined_data:
+                        combined_data[ts].update(data)
+                    else:
+                        combined_data[ts] = data
+            
             combined_data_list = sorted(combined_data.values(), key=lambda x: x['timestamp'])
             if not combined_data_list:
                 return JsonResponse({"error": "No data available for the selected parameters and date range"}, status=400)
+            
+            all_fields = fields + daily_flow_fields
+            
+            # Prepare data for output
+            df_data = []
+            for item in combined_data_list:
+                row = {'Date/Time': item['timestamp']}
+                for field in all_fields:
+                    row[field] = item.get(field, None)
+                df_data.append(row)
+            
+            df = pd.DataFrame(df_data)
+            
+            # Format column names
+            column_names = {'ph': 'pH', 'cod': 'COD (mg/L)', 'bod': 'BOD (mg/L)', 'tss': 'TSS (mg/L)'}
+            for i in range(1, 11):
+                column_names[f'flow{i}'] = f'Flow {i} (L/min)'
+                column_names[f'flow{i}_total'] = f'Flow {i} Total (L)'
+                column_names[f'flow{i}_daily'] = f'Flow {i} Daily (L)'
+                column_names[f'flow{i}_monthly'] = f'Flow {i} Monthly (L)'
+                column_names[f'daily_flow{i}'] = f'Flow {i} Daily Total (L)'
+            
+            df.rename(columns=column_names, inplace=True)
+            
             if file_format == 'excel':
-                wb = openpyxl.Workbook()
-                ws = wb.active
-                ws.title = "Water Quality Data"
-                headers = ['Date/Time'] + [f"{field.upper()} ({'L/min' if field.startswith('flow') and not any(s in field for s in ['total', 'daily', 'monthly']) else 'L' if field.startswith('flow') else 'mg/L' if field in ['cod', 'bod', 'tss'] else ''})" for field in fields]
-                ws.append(headers)
-                for row in combined_data_list:
-                    row_data = [row['timestamp'].strftime('%Y-%m-%d %H:%M:%S')]
-                    for field in fields:
-                        value = row.get(field)
-                        row_data.append(round(value, 2) if value is not None else '')
-                    ws.append(row_data)
-                for cell in ws[1]:
-                    cell.font = Font(bold=True)
-                    cell.fill = PatternFill(start_color="D3D3D3", end_color="D3D3D3", fill_type="solid")
-                    cell.alignment = Alignment(horizontal='center')
-                    cell.border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
-                for row in ws.iter_rows(min_row=2):
-                    for cell in row:
-                        cell.alignment = Alignment(horizontal='center')
-                        cell.border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
-                for column_cells in ws.columns:
-                    max_length = max(len(str(cell.value)) for cell in column_cells if cell.value)
-                    ws.column_dimensions[column_cells[0].column_letter].width = max_length + 2
-                buffer = BytesIO()
-                wb.save(buffer)
-                buffer.seek(0)
+                output = BytesIO()
+                with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                    df.to_excel(writer, index=False)
+                output.seek(0)
                 response = HttpResponse(
-                    content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                    content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    content=output.read()
                 )
-                response['Content-Disposition'] = f'attachment; filename="water_quality_data_{user.username}_{start_date}_{end_date}.xlsx"'
-                response.write(buffer.getvalue())
+                response['Content-Disposition'] = f'attachment; filename="water_quality_data_{user_id}.xlsx"'
                 return response
+            
             elif file_format == 'pdf':
-                buffer = BytesIO()
-                doc = SimpleDocTemplate(buffer, pagesize=landscape(letter))
+                output = BytesIO()
+                doc = SimpleDocTemplate(output, pagesize=letter)
                 elements = []
+                
                 styles = getSampleStyleSheet()
-                elements.append(Paragraph(f"Water Quality Data for {user.username}", styles['Title']))
-                elements.append(Spacer(1, 12))
-                headers = ['Date/Time'] + [f"{field.upper()} ({'L/min' if field.startswith('flow') and not any(s in field for s in ['total', 'daily', 'monthly']) else 'L' if field.startswith('flow') else 'mg/L' if field in ['cod', 'bod', 'tss'] else ''})" for field in fields]
-                data = [headers]
-                for row in combined_data_list:
-                    row_data = [row['timestamp'].strftime('%Y-%m-%d %H:%M:%S')]
-                    for field in fields:
-                        value = row.get(field)
-                        row_data.append(f"{value:.2f}" if value is not None else '')
-                    data.append(row_data)
-                num_columns = len(headers)
-                page_width = landscape(letter)[0] - 72
-                col_width = page_width / num_columns
-                col_widths = [col_width] * num_columns
-                table = Table(data, colWidths=col_widths)
+                elements.append(Paragraph("Water Quality Data Report", styles['Title']))
+                elements.append(Paragraph(f"User: {user.username}", styles['Normal']))
+                elements.append(Paragraph(f"Date Range: {start_date} to {end_date}", styles['Normal']))
+                elements.append(Paragraph("", styles['Normal']))
+                
+                data = [df.columns.tolist()] + df.values.tolist()
+                table = Table(data)
                 table.setStyle(TableStyle([
                     ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
                     ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
                     ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                     ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                    ('FONTSIZE', (0, 0), (-1, -1), 8),
+                    ('FONTSIZE', (0, 0), (-1, 0), 12),
                     ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                    ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-                    ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                    ('WORDWRAP', (0, 0), (-1, -1), True),
+                    ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                    ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
+                    ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                    ('FONTSIZE', (0, 1), (-1, -1), 10),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.black)
                 ]))
                 elements.append(table)
+                
                 doc.build(elements)
-                pdf = buffer.getvalue()
-                buffer.close()
-                response = HttpResponse(content_type='application/pdf')
-                response['Content-Disposition'] = f'attachment; filename="water_quality_data_{user.username}_{start_date}_{end_date}.pdf"'
-                response.write(pdf)
+                output.seek(0)
+                response = HttpResponse(
+                    content_type='application/pdf',
+                    content=output.read()
+                )
+                response['Content-Disposition'] = f'attachment; filename="water_quality_data_{user_id}.pdf"'
                 return response
+            
+            else:
+                return JsonResponse({"error": "Invalid file format"}, status=400)
+                
         except User.DoesNotExist:
             return JsonResponse({"error": "User not found"}, status=404)
         except ValueError as e:

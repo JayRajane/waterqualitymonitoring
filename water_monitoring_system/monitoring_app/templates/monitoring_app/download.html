@@ -1,3 +1,4 @@
+
 {% extends 'monitoring_app/base.html' %}
 
 {% block content %}
@@ -282,6 +283,97 @@
                     {% endif %}
                 </div>
             </div>
+
+            <!-- New section for daily totals -->
+            <div class="mb-3">
+                <label class="form-label">Daily Flow Totals (One entry per day)</label>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="select-all-daily">
+                    <label class="form-check-label" for="select-all-daily">Select All Daily Totals</label>
+                </div>
+                <div class="row">
+                    {% if user.show_flow1 %}
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input daily-total-checkbox" type="checkbox" name="daily_flow1" id="daily_flow1">
+                            <label class="form-check-label" for="daily_flow1">Flow 1 Daily Total (L)</label>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if user.show_flow2 %}
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input daily-total-checkbox" type="checkbox" name="daily_flow2" id="daily_flow2">
+                            <label class="form-check-label" for="daily_flow2">Flow 2 Daily Total (L)</label>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if user.show_flow3 %}
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input daily-total-checkbox" type="checkbox" name="daily_flow3" id="daily_flow3">
+                            <label class="form-check-label" for="daily_flow3">Flow 3 Daily Total (L)</label>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if user.show_flow4 %}
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input daily-total-checkbox" type="checkbox" name="daily_flow4" id="daily_flow4">
+                            <label class="form-check-label" for="daily_flow4">Flow 4 Daily Total (L)</label>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if user.show_flow5 %}
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input daily-total-checkbox" type="checkbox" name="daily_flow5" id="daily_flow5">
+                            <label class="form-check-label" for="daily_flow5">Flow 5 Daily Total (L)</label>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if user.show_flow6 %}
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input daily-total-checkbox" type="checkbox" name="daily_flow6" id="daily_flow6">
+                            <label class="form-check-label" for="daily_flow6">Flow 6 Daily Total (L)</label>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if user.show_flow7 %}
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input daily-total-checkbox" type="checkbox" name="daily_flow7" id="daily_flow7">
+                            <label class="form-check-label" for="daily_flow7">Flow 7 Daily Total (L)</label>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if user.show_flow8 %}
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input daily-total-checkbox" type="checkbox" name="daily_flow8" id="daily_flow8">
+                            <label class="form-check-label" for="daily_flow8">Flow 8 Daily Total (L)</label>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if user.show_flow9 %}
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input daily-total-checkbox" type="checkbox" name="daily_flow9" id="daily_flow9">
+                            <label class="form-check-label" for="daily_flow9">Flow 9 Daily Total (L)</label>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if user.show_flow10 %}
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            <input class="form-check-input daily-total-checkbox" type="checkbox" name="daily_flow10" id="daily_flow10">
+                            <label class="form-check-label" for="daily_flow10">Flow 10 Daily Total (L)</label>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
             
             <div class="mb-3">
                 <label class="form-label">File Format</label>
@@ -313,7 +405,7 @@
 </div>
 
 <div class="text-center mt-4">
-    <a href="{% url 'download_user_credentials' user.id %}" class="btn btn-info">Download User Credentials</a>
+    <a href="{% url 'download_user_credentials' user.id %}" class="btn btn-info">Go To Dashboard</a>
 </div>
 
 {% endblock %}
@@ -326,6 +418,11 @@ $(document).ready(function() {
         $('.parameter-checkbox').prop('checked', this.checked);
     });
 
+    // Select All Daily Totals checkbox functionality
+    $('#select-all-daily').on('change', function() {
+        $('.daily-total-checkbox').prop('checked', this.checked);
+    });
+
     // Preview button handler
     $('#preview-btn').on('click', function() {
         const formData = new FormData($('#download-form')[0]);
@@ -333,7 +430,7 @@ $(document).ready(function() {
         formData.forEach((value, key) => {
             if (key === 'csrfmiddlewaretoken') return;
             if (key === 'format') return;
-            if (['ph', 'cod', 'bod', 'tss'].includes(key) || key.startsWith('flow')) {
+            if (['ph', 'cod', 'bod', 'tss'].includes(key) || key.startsWith('flow') || key.startsWith('daily_flow')) {
                 if (value === 'on') data[key] = true;
             } else {
                 data[key] = value;
@@ -345,7 +442,7 @@ $(document).ready(function() {
             return;
         }
 
-        if (!Object.keys(data).some(key => ['ph', 'cod', 'bod', 'tss'].includes(key) || key.startsWith('flow'))) {
+        if (!Object.keys(data).some(key => ['ph', 'cod', 'bod', 'tss'].includes(key) || key.startsWith('flow') || key.startsWith('daily_flow'))) {
             alert('Please select at least one parameter.');
             return;
         }
@@ -376,12 +473,15 @@ $(document).ready(function() {
                     let unit = '';
                     if (field.startsWith('flow') && !['total', 'daily', 'monthly'].some(s => field.includes(s))) {
                         unit = ' (L/min)';
-                    } else if (field.startsWith('flow')) {
+                    } else if (field.startsWith('flow') || field.startsWith('daily_flow')) {
                         unit = ' (L)';
                     } else if (['cod', 'bod', 'tss'].includes(field)) {
                         unit = ' (mg/L)';
                     }
-                    headerRow.append(`<th>${field.toUpperCase()}${unit}</th>`);
+                    const displayName = field.startsWith('daily_flow') ? 
+                        field.replace('daily_flow', 'Flow ').replace('_', ' ') + ' Daily Total' : 
+                        field.toUpperCase();
+                    headerRow.append(`<th>${displayName}${unit}</th>`);
                 });
                 thead.append(headerRow);
 
@@ -417,7 +517,7 @@ $(document).ready(function() {
         const data = {};
         formData.forEach((value, key) => {
             if (key === 'csrfmiddlewaretoken') return;
-            if (['ph', 'cod', 'bod', 'tss'].includes(key) || key.startsWith('flow')) {
+            if (['ph', 'cod', 'bod', 'tss'].includes(key) || key.startsWith('flow') || key.startsWith('daily_flow')) {
                 if (value === 'on') data[key] = true;
             } else {
                 data[key] = value;
@@ -429,7 +529,7 @@ $(document).ready(function() {
             return;
         }
 
-        if (!Object.keys(data).some(key => ['ph', 'cod', 'bod', 'tss'].includes(key) || key.startsWith('flow'))) {
+        if (!Object.keys(data).some(key => ['ph', 'cod', 'bod', 'tss'].includes(key) || key.startsWith('flow') || key.startsWith('daily_flow'))) {
             alert('Please select at least one parameter.');
             return;
         }
