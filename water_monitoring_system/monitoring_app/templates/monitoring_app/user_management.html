@@ -1,6 +1,168 @@
 {% extends 'monitoring_app/base.html' %}
 
 {% block content %}
+<style>
+    .sliding-header {
+        text-align: center;
+        padding: 2rem;
+        background: linear-gradient(135deg, #007bff, #00c4b4);
+        color: white;
+        border-radius: 10px;
+        margin-bottom: 2rem;
+        animation: slideIn 1s ease-in-out;
+    }
+
+    .sliding-header h1 {
+        font-size: 2.5rem;
+        margin-bottom: 0.5rem;
+        font-weight: 700;
+    }
+
+    .sliding-header p {
+        font-size: 1.2rem;
+        opacity: 0.9;
+    }
+
+    .card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    .card-header {
+        background: #007bff;
+        border-radius: 15px 15px 0 0;
+        padding: 1.5rem;
+    }
+
+    .card-header h5 {
+        font-weight: 600;
+        margin: 0;
+    }
+
+    .card-body {
+        padding: 2rem;
+    }
+
+    .table {
+        margin-bottom: 0;
+    }
+
+    .table th {
+        font-weight: 600;
+        color: #333;
+        border-bottom: 2px solid #dee2e6;
+    }
+
+    .table td {
+        vertical-align: middle;
+        padding: 1rem;
+    }
+
+    .table-striped tbody tr:nth-of-type(odd) {
+        background-color: rgba(0, 123, 255, 0.05);
+    }
+
+    .table tbody tr:hover {
+        background-color: rgba(0, 123, 255, 0.1);
+    }
+
+    .badge {
+        font-size: 0.9rem;
+        padding: 0.5em 1em;
+        border-radius: 20px;
+    }
+
+    .btn-sm {
+        border-radius: 20px;
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+        font-weight: 500;
+        transition: background-color 0.3s ease;
+    }
+
+    .btn-info {
+        background-color: #17a2b8;
+        border: none;
+    }
+
+    .btn-info:hover {
+        background-color: #117a8b;
+    }
+
+    .btn-danger {
+        background-color: #dc3545;
+        border: none;
+    }
+
+    .btn-danger:hover {
+        background-color: #b02a37;
+    }
+
+    .btn-success {
+        background-color: #00c4b4;
+        border: none;
+    }
+
+    .btn-success:hover {
+        background-color: #009a8d;
+    }
+
+    .btn-light {
+        background-color: #f8f9fa;
+        border: none;
+        color: #007bff;
+    }
+
+    .btn-light:hover {
+        background-color: #e2e6ea;
+        color: #0056b3;
+    }
+
+    .icon {
+        margin-right: 0.5rem;
+    }
+
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @media (max-width: 768px) {
+        .sliding-header h1 {
+            font-size: 2rem;
+        }
+
+        .sliding-header p {
+            font-size: 1rem;
+        }
+
+        .table-responsive {
+            font-size: 0.9rem;
+        }
+
+        .btn-sm {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.8rem;
+        }
+    }
+</style>
+
+<!-- Include Font Awesome for icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
 <div class="sliding-header">
     <h1>User Management</h1>
     <p>Manage system users</p>
@@ -9,8 +171,8 @@
 <div class="card mb-4">
     <div class="card-header bg-primary text-white">
         <div class="d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Users</h5>
-            <a href="{% url 'add_user' %}" class="btn btn-light btn-sm">Add New User</a>
+            <h5 class="mb-0"><i class="fas fa-users icon"></i>Users</h5>
+            <a href="{% url 'add_user' %}" class="btn btn-light btn-sm"><i class="fas fa-user-plus icon"></i>Add New User</a>
         </div>
     </div>
     <div class="card-body">
@@ -39,9 +201,9 @@
                             {% endif %}
                         </td>
                         <td>
-                            <a href="{% url 'edit_user' user.id %}" class="btn btn-sm btn-info">Edit</a>
-                            <a href="{% url 'delete_user' user.id %}" class="btn btn-sm btn-danger">Delete</a>
-                            <a href="{% url 'download_user_credentials' user.id %}" class="btn btn-sm btn-success">PDF</a>
+                            <a href="{% url 'edit_user' user.id %}" class="btn btn-sm btn-info"><i class="fas fa-edit icon"></i>Edit</a>
+                            <a href="{% url 'delete_user' user.id %}" class="btn btn-sm btn-danger"><i class="fas fa-trash icon"></i>Delete</a>
+                            <a href="{% url 'download_user_credentials' user.id %}" class="btn btn-sm btn-success"><i class="fas fa-file-pdf icon"></i>PDF</a>
                         </td>
                     </tr>
                     {% endfor %}

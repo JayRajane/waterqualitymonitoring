@@ -1,20 +1,171 @@
 {% load static %}
-
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Data Management System</title>
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <meta name="viewport" content="width=device-height, initial-scale=1.0">
+    <title>Data Management System | {% block title %}Home{% endblock %}</title>
+    <!-- Bootstrap CSS (updated to 5.3.1) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-4bw+/aepP/YC94hEpVNVgiZdgIC5+VKNBQNGCHeKRQN+PtmoHDEXuppvnDJzQIu9" crossorigin="anonymous">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" integrity="sha512-Kc323vGBEqzTmouAECnVceyQqyqdsSiqLQISBL29aUW4U/M7pSPA/gEUZQqv1cwx4OnYxTxve5UMg5GT6L4JJg" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="{% static 'monitoring_app/css/styles.css' %}">
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+
+    <style>
+        /* Navbar styles */
+        .navbar {
+            background: linear-gradient(135deg, #007bff, #00c4b4);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            animation: slideIn 0.8s ease-out;
+        }
+
+        .navbar-brand {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: white !important;
+            transition: color 0.3s ease;
+        }
+
+        .navbar-brand:hover {
+            color: #e0f7ff !important;
+        }
+
+        .nav-link {
+            color: white !important;
+            font-size: 1rem;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            position: relative;
+        }
+
+        .nav-link:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+            color: #e0f7ff !important;
+        }
+
+        .nav-link.active {
+            color: #e0f7ff !important;
+            font-weight: 500;
+        }
+
+        .nav-link.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 30%;
+            height: 2px;
+            background-color: #00c4b4;
+        }
+
+        .navbar-toggler {
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        .navbar-toggler-icon {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba(255, 255, 255, 0.8)' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+        }
+
+        /* Footer styles */
+        footer {
+            background: linear-gradient(135deg,rgba(0, 123, 255, 0),rgba(0, 196, 180, 0));
+         
+            padding: 1.5rem 0;
+            box-shadow: 0 -4px 8px rgba(0, 0, 0, 0);
+        }
+
+        footer p {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 500;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0);
+        }
+
+        footer .social-icons a {
+            color: white;
+            font-size: 1.2rem;
+            margin: 0 0.5rem;
+            transition: color 0.3s ease, transform 0.2s ease;
+        }
+
+        footer .social-icons a:hover {
+            color: #e0f7ff;
+            transform: scale(1.2);
+        }
+
+        /* Alert styles (consistent with download_data.html) */
+        .alert {
+            border-radius: 8px;
+            padding: 1rem;
+            font-weight: 500;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .alert-success {
+            background-color: #00c4b4;
+            color: white;
+        }
+
+        .alert-danger {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        .alert .icon {
+            font-size: 1.2rem;
+            margin-right: 0.5rem;
+            color: #fff;
+        }
+
+        .btn-close {
+            filter: brightness(0) invert(1);
+        }
+
+        /* Animation */
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .navbar-brand {
+                font-size: 1.2rem;
+            }
+
+            .nav-link {
+                font-size: 0.9rem;
+                padding: 0.4rem 0.8rem;
+            }
+
+            footer p {
+                font-size: 0.9rem;
+            }
+
+            footer .social-icons a {
+                font-size: 1rem;
+                margin: 0 0.3rem;
+            }
+        }
+    </style>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <nav class="navbar navbar-expand-lg navbar-dark">
         <div class="container-fluid">
-            <a class="navbar-brand" href="{% url 'dashboard' %}">Data Management System</a>
+            <a class="navbar-brand" href="{% url 'dashboard' %}">
+                <i class="fas fa-database me-2"></i>Data Management System
+            </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
@@ -22,32 +173,48 @@
                 <ul class="navbar-nav ms-auto">
                     {% if user.is_authenticated %}
                         <li class="nav-item">
-                            <a class="nav-link" href="{% url 'dashboard' %}">Dashboard</a>
+                            <a class="nav-link {% if request.path == '/dashboard/' %}active{% endif %}" href="{% url 'dashboard' %}">
+                                <i class="fas fa-tachometer-alt icon"></i>Dashboard
+                            </a>
                         </li>
                         {% if user.is_admin %}
                             <li class="nav-item">
-                                <a class="nav-link" href="{% url 'user_management' %}">User Management</a>
+                                <a class="nav-link {% if 'user_management' in request.path %}active{% endif %}" href="{% url 'user_management' %}">
+                                    <i class="fas fa-users icon"></i>User Management
+                                </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" href="{% url 'data_entry' %}">Data Entry</a>
+                                <a class="nav-link {% if 'data_entry' in request.path %}active{% endif %}" href="{% url 'data_entry' %}">
+                                    <i class="fas fa-edit icon"></i>Data Entry
+                                </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" href="{% url 'all_users_dashboard' %}">All Users</a>
+                                <a class="nav-link {% if 'all_users_dashboard' in request.path %}active{% endif %}" href="{% url 'all_users_dashboard' %}">
+                                    <i class="fas fa-globe icon"></i>All Users
+                                </a>
                             </li>
                         {% else %}
                             <li class="nav-item">
-                                <a class="nav-link" href="{% url 'live_status' user.id %}">Live Status</a>
+                                <a class="nav-link {% if 'live_status' in request.path %}active{% endif %}" href="{% url 'live_status' user.id %}">
+                                    <i class="fas fa-signal icon"></i>Live Status
+                                </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" href="{% url 'download_page' user.id %}">Download Data</a>
+                                <a class="nav-link {% if 'download_page' in request.path %}active{% endif %}" href="{% url 'download_page' user.id %}">
+                                    <i class="fas fa-download icon"></i>Download Data
+                                </a>
                             </li>
                         {% endif %}
                         <li class="nav-item">
-                            <a class="nav-link" href="{% url 'logout_confirm' %}">Logout</a>
+                            <a class="nav-link {% if 'logout_confirm' in request.path %}active{% endif %}" href="{% url 'logout_confirm' %}">
+                                <i class="fas fa-sign-out-alt icon"></i>Logout
+                            </a>
                         </li>
                     {% else %}
                         <li class="nav-item">
-                            <a class="nav-link" href="{% url 'login' %}">Login</a>
+                            <a class="nav-link {% if 'login' in request.path %}active{% endif %}" href="{% url 'login' %}">
+                                <i class="fas fa-sign-in-alt icon"></i>Login
+                            </a>
                         </li>
                     {% endif %}
                 </ul>
@@ -60,6 +227,7 @@
             <div class="messages mb-4">
                 {% for message in messages %}
                     <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        <i class="fas fa-{% if message.tags == 'success' %}check-circle{% else %}exclamation-circle{% endif %} icon"></i>
                         {{ message }}
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
@@ -71,14 +239,17 @@
         {% endblock %}
     </div>
 
-    <footer class="text-center mt-4 py-3 bg-light">
-        <p>&copy; 2025 Data Management System. All rights reserved.</p>
+    <footer class="text-center">
+        <div class="container">
+            <p>© 2025 Data Management System. All rights reserved.</p>
+            
+        </div>
     </footer>
 
-    <!-- Bootstrap JS and dependencies -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Bootstrap JS (updated to 5.3.1) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js" integrity="sha384-HwwvtgBNo3bZJJLYd8oVXjrBZt8cqVSpeBNS5n7C8IVInixGAoxmnlMuBnhbgrkm" crossorigin="anonymous"></script>
     <!-- jQuery -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
     <!-- Custom JS -->
     {% block extra_js %}
     {% endblock %}
