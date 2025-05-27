@@ -24,9 +24,11 @@ from django.utils.timezone import now
 import json
 from django.contrib.auth.views import LoginView
 from django.urls import reverse
-from django.db.models import Sum  # Added for aggregating flow values
-import pandas as pd  # Added import to fix 'pd' not defined error
-
+from django.db.models import Sum
+import pandas as pd
+from django.views.decorators.csrf import csrf_exempt
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -577,30 +579,49 @@ def data_entry(request):
         return render(request, 'monitoring_app/data_entry.html', {'users': users, 'machines': machines})
     return redirect('dashboard')
 
-@login_required
+@api_view(['POST'])
+@permission_classes([AllowAny])
+@csrf_exempt
 def submit_data(request):
     if request.method == 'POST':
-        user_id = request.POST.get('user_id')
         try:
-            user = User.objects.get(id=user_id)
-            # Non-flow parameters
-            ph = request.POST.get('ph', '') or None
-            cod = request.POST.get('cod', '') or None
-            bod = request.POST.get('bod', '') or None
-            tss = request.POST.get('tss', '') or None
-            ph = float(ph) if ph else None
-            cod = float(cod) if cod else None
-            bod = float(bod) if bod else None
-            tss = float(tss) if tss else None
+            data = request.data
+            user_id = data.get('user_id')
+            if not user_id:
+                logger.error("Missing user_id in request")
+                return JsonResponse({'success': False, 'error': 'Missing user_id'}, status=400)
+
+            try:
+                user = User.objects.get(id=user_id)
+            except User.DoesNotExist:
+                logger.error(f"User not found: user_id {user_id}")
+                return JsonResponse({'success': False, 'error': 'User not found'}, status=404)
+
+            # Non-flow parameters, handle empty strings
+            def parse_float(value):
+                if value is None or value == '':
+                    return None
+                try:
+                    return float(value)
+                except ValueError:
+                    logger.error(f"Invalid float value: {value}")
+                    return None
+
+            ph = parse_float(data.get('ph'))
+            cod = parse_float(data.get('cod'))
+            bod = parse_float(data.get('bod'))
+            tss = parse_float(data.get('tss'))
+
             # Validate non-negative values and upper bounds
             if ph is not None and (ph < 0 or ph > 14):
-                return JsonResponse({'success': False, 'error': 'pH must be between 0 and 14'})
+                return JsonResponse({'success': False, 'error': 'pH must be between 0 and 14'}, status=400)
             if cod is not None and cod < 0:
-                return JsonResponse({'success': False, 'error': 'COD cannot be negative'})
+                return JsonResponse({'success': False, 'error': 'COD cannot be negative'}, status=400)
             if bod is not None and bod < 0:
-                return JsonResponse({'success': False, 'error': 'BOD cannot be negative'})
+                return JsonResponse({'success': False, 'error': 'BOD cannot be negative'}, status=400)
             if tss is not None and tss < 0:
-                return JsonResponse({'success': False, 'error': 'TSS cannot be negative'})
+                return JsonResponse({'success': False, 'error': 'TSS cannot be negative'}, status=400)
+
             # Save non-flow data
             if any([ph, cod, bod, tss]):
                 new_wq_data = WaterQualityData(
@@ -612,6 +633,7 @@ def submit_data(request):
                 )
                 new_wq_data.save()
                 logger.info(f"Saved water quality data for user_id {user_id}: ph={ph}, cod={cod}, bod={bod}, tss={tss}")
+
             # Flow parameters
             for flow_number in range(1, 11):
                 if getattr(user, f'show_flow{flow_number}'):
@@ -620,27 +642,27 @@ def submit_data(request):
                     total_param = f'flow{flow_number}_total'
                     daily_param = f'flow{flow_number}_daily'
                     monthly_param = f'flow{flow_number}_monthly'
+
                     # Get submitted values
-                    flow_value = request.POST.get(flow_param, '') or None
-                    total_value = request.POST.get(total_param, '') or None
-                    daily_value = request.POST.get(daily_param, '') or None
-                    monthly_value = request.POST.get(monthly_param, '') or None
-                    flow_value = float(flow_value) if flow_value else None
-                    total_value = float(total_value) if total_value else None
-                    daily_value = float(daily_value) if daily_value else None
-                    monthly_value = float(monthly_value) if monthly_value else None
+                    flow_value = parse_float(data.get(flow_param))
+                    total_value = parse_float(data.get(total_param))
+                    daily_value = parse_float(data.get(daily_param))
+                    monthly_value = parse_float(data.get(monthly_param))
+
                     # Validate non-negative values
                     if flow_value is not None and flow_value < 0:
-                        return JsonResponse({'success': False, 'error': f'{flow_param} cannot be negative'})
+                        return JsonResponse({'success': False, 'error': f'{flow_param} cannot be negative'}, status=400)
                     if total_value is not None and total_value < 0:
-                        return JsonResponse({'success': False, 'error': f'{total_param} cannot be negative'})
+                        return JsonResponse({'success': False, 'error': f'{total_param} cannot be negative'}, status=400)
                     if daily_value is not None and daily_value < 0:
-                        return JsonResponse({'success': False, 'error': f'{daily_param} cannot be negative'})
+                        return JsonResponse({'success': False, 'error': f'{daily_param} cannot be negative'}, status=400)
                     if monthly_value is not None and monthly_value < 0:
-                        return JsonResponse({'success': False, 'error': f'{monthly_param} cannot be negative'})
+                        return JsonResponse({'success': False, 'error': f'{monthly_param} cannot be negative'}, status=400)
+
                     # Current date for daily/monthly calculations
-                    today = now().date()
+                    today = timezone.now().date()
                     month_start = today.replace(day=1)
+
                     # Handle flow value
                     if flow_value is not None:
                         Reading.objects.create(
@@ -650,6 +672,7 @@ def submit_data(request):
                             value=flow_value
                         )
                         logger.info(f"Saved {flow_param} reading with value {flow_value} for user_id {user_id}")
+
                     # Handle total flow
                     if flow_value is not None or total_value is not None:
                         latest_total = Reading.objects.filter(
@@ -659,7 +682,6 @@ def submit_data(request):
                         ).order_by('-recorded_at').first()
                         new_total = total_value if total_value is not None else None
                         if new_total is None and flow_value is not None:
-                            # Increment total based on flow_value
                             new_total = (latest_total.value if latest_total else 0) + flow_value
                         if new_total is not None:
                             Reading.objects.create(
@@ -669,6 +691,7 @@ def submit_data(request):
                                 value=new_total
                             )
                             logger.info(f"Saved {total_param} reading with value {new_total} for user_id {user_id}")
+
                     # Calculate and save daily flow
                     daily_sum = Reading.objects.filter(
                         user=user,
@@ -678,7 +701,7 @@ def submit_data(request):
                     ).aggregate(total=Sum('value'))['total'] or 0
                     if flow_value is not None:
                         daily_sum += flow_value
-                    if daily_sum > 0 and daily_value is None:  # Only save if there's data and not overridden
+                    if daily_sum > 0 and daily_value is None:
                         Reading.objects.create(
                             user=user,
                             machine=machine,
@@ -694,6 +717,7 @@ def submit_data(request):
                             value=daily_value
                         )
                         logger.info(f"Saved {daily_param} reading with value {daily_value} (manual) for user_id {user_id}")
+
                     # Calculate and save monthly flow
                     monthly_sum = Reading.objects.filter(
                         user=user,
@@ -703,7 +727,7 @@ def submit_data(request):
                     ).aggregate(total=Sum('value'))['total'] or 0
                     if flow_value is not None:
                         monthly_sum += flow_value
-                    if monthly_sum > 0 and monthly_value is None:  # Only save if there's data and not overridden
+                    if monthly_sum > 0 and monthly_value is None:
                         Reading.objects.create(
                             user=user,
                             machine=machine,
@@ -719,21 +743,17 @@ def submit_data(request):
                             value=monthly_value
                         )
                         logger.info(f"Saved {monthly_param} reading with value {monthly_value} (manual) for user_id {user_id}")
+
             return JsonResponse({'success': True})
-        except User.DoesNotExist:
-            logger.error(f"User not found: user_id {user_id}")
-            return JsonResponse({'success': False, 'error': 'User not found'})
-        except Machine.DoesNotExist:
-            logger.error(f"Machine not found for user_id {user_id}")
-            return JsonResponse({'success': False, 'error': 'Machine not found'})
         except ValueError as e:
-            logger.error(f"ValueError in submit_data for user_id {user_id}: {str(e)}")
-            return JsonResponse({'success': False, 'error': str(e)})
+            logger.error(f"ValueError in submit_data: {str(e)}")
+            return JsonResponse({'success': False, 'error': str(e)}, status=400)
         except Exception as e:
-            logger.error(f"Error in submit_data for user_id {user_id}: {str(e)}", exc_info=True)
-            return JsonResponse({'success': False, 'error': str(e)})
+            logger.error(f"Error in submit_data: {str(e)}", exc_info=True)
+            return JsonResponse({'success': False, 'error': str(e)}, status=500)
     logger.error("Invalid request method in submit_data")
-    return JsonResponse({'success': False, 'error': 'Invalid request method'})
+    return JsonResponse({'success': False, 'error': 'Invalid request method'}, status=405)
+
     
 @login_required
 def preview_data(request, user_id):

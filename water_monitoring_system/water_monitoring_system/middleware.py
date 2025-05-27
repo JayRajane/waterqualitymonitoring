@@ -1,4 +1,3 @@
-# Create a new file in your project named middleware.py
 from django.contrib.auth.views import redirect_to_login
 from django.urls import resolve, reverse
 
@@ -14,8 +13,8 @@ class RequireLoginMiddleware:
         # Check if the path requires auth
         path = request.path_info
         
-        # Skip authentication for login page and admin
-        if path.startswith('/accounts/login/') or path.startswith('/admin/'):
+        # Skip authentication for login page, admin, and submit-data
+        if path.startswith('/accounts/login/') or path.startswith('/admin/') or path == '/submit-data/':
             return None
             
         # If user is not authenticated, redirect to login
