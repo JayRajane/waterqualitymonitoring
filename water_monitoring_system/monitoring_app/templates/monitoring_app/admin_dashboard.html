@@ -23,11 +23,23 @@
         opacity: 0.9;
     }
 
+    .dashboard-container {
+        display: flex;
+        justify-content: center;
+        width: 100%;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 15px;
+    }
+
     .card {
         border: none;
         border-radius: 15px;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
         transition: transform 0.3s ease, box-shadow 0.3s ease;
+        height: 100%;
+        width: 100%;
+        margin: 0 10px;
     }
 
     .card:hover {
@@ -37,7 +49,11 @@
 
     .card-body {
         text-align: center;
-        padding: 2rem;
+        padding: 2.5rem;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        justify-content: space-between;
     }
 
     .card-title {
@@ -48,10 +64,10 @@
     }
 
     .card-text {
-        font-size: 2rem;
+        font-size: 2.5rem;
         font-weight: bold;
         color: #007bff;
-        margin-bottom: 1.5rem;
+        margin: 1.5rem 0;
     }
 
     .btn-primary {
@@ -62,6 +78,8 @@
         font-size: 1rem;
         font-weight: 500;
         transition: background-color 0.3s ease;
+        width: fit-content;
+        margin: 0 auto;
     }
 
     .btn-primary:hover {
@@ -69,9 +87,24 @@
     }
 
     .icon {
-        font-size: 2.5rem;
+        font-size: 3rem;
         color: #00c4b4;
-        margin-bottom: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .row {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        width: 100%;
+    }
+
+    .col-md-4 {
+        display: flex;
+        flex: 0 0 30%;
+        max-width: 30%;
+        padding: 0 15px;
+        margin-bottom: 30px;
     }
 
     @keyframes slideIn {
@@ -85,6 +118,13 @@
         }
     }
 
+    @media (max-width: 992px) {
+        .col-md-4 {
+            flex: 0 0 50%;
+            max-width: 50%;
+        }
+    }
+
     @media (max-width: 768px) {
         .sliding-header h1 {
             font-size: 2rem;
@@ -94,8 +134,17 @@
             font-size: 1rem;
         }
 
+        .col-md-4 {
+            flex: 0 0 100%;
+            max-width: 100%;
+        }
+
         .card-text {
-            font-size: 1.5rem;
+            font-size: 2rem;
+        }
+
+        .icon {
+            font-size: 2.5rem;
         }
     }
 </style>
@@ -108,25 +157,38 @@
     <p>Manage users and monitor water quality data</p>
 </div>
 
-<div class="row">
-    <div class="col-md-4 mb-4">
-        <div class="card">
-            <div class="card-body">
-                <i class="fas fa-users icon"></i>
-                <h5 class="card-title">Total Users</h5>
-                <p class="card-text">{{ total_users }}</p>
-                <a href="{% url 'user_management' %}" class="btn btn-primary">Manage Users</a>
+<div class="dashboard-container">
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <i class="fas fa-users icon" aria-hidden="true"></i>
+                    <h5 class="card-title">Total Users</h5>
+                    <p class="card-text">{{ total_users }}</p>
+                    <a href="{% url 'user_management' %}" class="btn btn-primary">Manage Users</a>
+                </div>
             </div>
         </div>
-    </div>
 
-    <div class="col-md-4 mb-4">
-        <div class="card">
-            <div class="card-body">
-                <i class="fas fa-tachometer-alt icon"></i>
-                <h5 class="card-title">Active Users</h5>
-                <p class="card-text">{{ active_machines }}</p>
-                <a href="{% url 'all_users_dashboard' %}" class="btn btn-primary">View All Data</a>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <i class="fas fa-edit icon" aria-hidden="true"></i>
+                    <h5 class="card-title">Data Entries</h5>
+                    <p class="card-text">{{ data_entry }}</p>
+                    <a href="{% url 'data_entry' %}" class="btn btn-primary">Add Data</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <i class="fas fa-globe icon" aria-hidden="true"></i>
+                    <h5 class="card-title">All Users</h5>
+                    <p class="card-text">{{ all_users_dashboard }}</p>
+                    <a href="{% url 'all_users_dashboard' %}" class="btn btn-primary">View All Users</a>
+                </div>
             </div>
         </div>
     </div>

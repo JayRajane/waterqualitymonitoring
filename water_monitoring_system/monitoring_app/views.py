@@ -579,6 +579,7 @@ def data_entry(request):
         return render(request, 'monitoring_app/data_entry.html', {'users': users, 'machines': machines})
     return redirect('dashboard')
 
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 @csrf_exempt
@@ -597,7 +598,7 @@ def submit_data(request):
                 logger.error(f"User not found: user_id {user_id}")
                 return JsonResponse({'success': False, 'error': 'User not found'}, status=404)
 
-            # Non-flow parameters, handle empty strings
+            # Helper function to parse float values safely
             def parse_float(value):
                 if value is None or value == '':
                     return None
@@ -607,6 +608,7 @@ def submit_data(request):
                     logger.error(f"Invalid float value: {value}")
                     return None
 
+            # Parse and validate water quality parameters
             ph = parse_float(data.get('ph'))
             cod = parse_float(data.get('cod'))
             bod = parse_float(data.get('bod'))
@@ -622,7 +624,7 @@ def submit_data(request):
             if tss is not None and tss < 0:
                 return JsonResponse({'success': False, 'error': 'TSS cannot be negative'}, status=400)
 
-            # Save non-flow data
+            # Save water quality data if any parameters are provided
             if any([ph, cod, bod, tss]):
                 new_wq_data = WaterQualityData(
                     user=user,
@@ -634,7 +636,12 @@ def submit_data(request):
                 new_wq_data.save()
                 logger.info(f"Saved water quality data for user_id {user_id}: ph={ph}, cod={cod}, bod={bod}, tss={tss}")
 
-            # Flow parameters
+            # Current date for daily/monthly calculations
+            now = timezone.now()
+            today = now.date()
+            month_start = today.replace(day=1)
+
+            # Process flow data for each flow meter
             for flow_number in range(1, 11):
                 if getattr(user, f'show_flow{flow_number}'):
                     machine = Machine.objects.get(name=f'machine_flow_{flow_number}')
@@ -646,25 +653,16 @@ def submit_data(request):
                     # Get submitted values
                     flow_value = parse_float(data.get(flow_param))
                     total_value = parse_float(data.get(total_param))
-                    daily_value = parse_float(data.get(daily_param))
-                    monthly_value = parse_float(data.get(monthly_param))
 
                     # Validate non-negative values
                     if flow_value is not None and flow_value < 0:
                         return JsonResponse({'success': False, 'error': f'{flow_param} cannot be negative'}, status=400)
                     if total_value is not None and total_value < 0:
                         return JsonResponse({'success': False, 'error': f'{total_param} cannot be negative'}, status=400)
-                    if daily_value is not None and daily_value < 0:
-                        return JsonResponse({'success': False, 'error': f'{daily_param} cannot be negative'}, status=400)
-                    if monthly_value is not None and monthly_value < 0:
-                        return JsonResponse({'success': False, 'error': f'{monthly_param} cannot be negative'}, status=400)
 
-                    # Current date for daily/monthly calculations
-                    today = timezone.now().date()
-                    month_start = today.replace(day=1)
-
-                    # Handle flow value
+                    # Process flow reading if provided
                     if flow_value is not None:
+                        # Save the instantaneous flow reading
                         Reading.objects.create(
                             user=user,
                             machine=machine,
@@ -673,35 +671,14 @@ def submit_data(request):
                         )
                         logger.info(f"Saved {flow_param} reading with value {flow_value} for user_id {user_id}")
 
-                    # Handle total flow
-                    if flow_value is not None or total_value is not None:
-                        latest_total = Reading.objects.filter(
+                        # Calculate and save daily flow (sum of all today's flow readings)
+                        daily_sum = Reading.objects.filter(
                             user=user,
                             machine=machine,
-                            parameter=total_param
-                        ).order_by('-recorded_at').first()
-                        new_total = total_value if total_value is not None else None
-                        if new_total is None and flow_value is not None:
-                            new_total = (latest_total.value if latest_total else 0) + flow_value
-                        if new_total is not None:
-                            Reading.objects.create(
-                                user=user,
-                                machine=machine,
-                                parameter=total_param,
-                                value=new_total
-                            )
-                            logger.info(f"Saved {total_param} reading with value {new_total} for user_id {user_id}")
-
-                    # Calculate and save daily flow
-                    daily_sum = Reading.objects.filter(
-                        user=user,
-                        machine=machine,
-                        parameter=flow_param,
-                        recorded_at__date=today
-                    ).aggregate(total=Sum('value'))['total'] or 0
-                    if flow_value is not None:
-                        daily_sum += flow_value
-                    if daily_sum > 0 and daily_value is None:
+                            parameter=flow_param,
+                            recorded_at__date=today
+                        ).aggregate(total=Sum('value'))['total'] or 0
+                        
                         Reading.objects.create(
                             user=user,
                             machine=machine,
@@ -709,25 +686,15 @@ def submit_data(request):
                             value=daily_sum
                         )
                         logger.info(f"Saved {daily_param} reading with value {daily_sum} for user_id {user_id}")
-                    elif daily_value is not None:
-                        Reading.objects.create(
+
+                        # Calculate and save monthly flow (sum of all this month's flow readings)
+                        monthly_sum = Reading.objects.filter(
                             user=user,
                             machine=machine,
-                            parameter=daily_param,
-                            value=daily_value
-                        )
-                        logger.info(f"Saved {daily_param} reading with value {daily_value} (manual) for user_id {user_id}")
-
-                    # Calculate and save monthly flow
-                    monthly_sum = Reading.objects.filter(
-                        user=user,
-                        machine=machine,
-                        parameter=flow_param,
-                        recorded_at__date__gte=month_start
-                    ).aggregate(total=Sum('value'))['total'] or 0
-                    if flow_value is not None:
-                        monthly_sum += flow_value
-                    if monthly_sum > 0 and monthly_value is None:
+                            parameter=flow_param,
+                            recorded_at__date__gte=month_start
+                        ).aggregate(total=Sum('value'))['total'] or 0
+                        
                         Reading.objects.create(
                             user=user,
                             machine=machine,
@@ -735,14 +702,29 @@ def submit_data(request):
                             value=monthly_sum
                         )
                         logger.info(f"Saved {monthly_param} reading with value {monthly_sum} for user_id {user_id}")
-                    elif monthly_value is not None:
+
+                    # Process total flow (can be provided manually or calculated)
+                    if flow_value is not None or total_value is not None:
+                        latest_total = Reading.objects.filter(
+                            user=user,
+                            machine=machine,
+                            parameter=total_param
+                        ).order_by('-recorded_at').first()
+                        
+                        if total_value is not None:
+                            # Use manual total value if provided
+                            new_total = total_value
+                        else:
+                            # Calculate new total from previous total + current flow
+                            new_total = (latest_total.value if latest_total else 0) + flow_value
+                        
                         Reading.objects.create(
                             user=user,
                             machine=machine,
-                            parameter=monthly_param,
-                            value=monthly_value
+                            parameter=total_param,
+                            value=new_total
                         )
-                        logger.info(f"Saved {monthly_param} reading with value {monthly_value} (manual) for user_id {user_id}")
+                        logger.info(f"Saved {total_param} reading with value {new_total} for user_id {user_id}")
 
             return JsonResponse({'success': True})
         except ValueError as e:
