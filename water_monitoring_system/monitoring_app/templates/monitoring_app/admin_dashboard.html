@@ -16,19 +16,11 @@
             </div>
         </div>
     </div>
+
     <div class="col-md-4 mb-4">
         <div class="card">
             <div class="card-body">
-                <h5 class="card-title">Recent Data Entries</h5>
-                <p class="card-text">{{ recent_data_count }}</p>
-                <a href="{% url 'data_entry' %}" class="btn btn-primary">Enter Data</a>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4 mb-4">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">Active Machines</h5>
+                <h5 class="card-title">Active Users</h5>
                 <p class="card-text">{{ active_machines }}</p>
                 <a href="{% url 'all_users_dashboard' %}" class="btn btn-primary">View All Data</a>
             </div>
@@ -36,18 +28,10 @@
     </div>
 </div>
 
-<div class="card">
-    <div class="card-header bg-primary text-white">
-        <h5 class="mb-0">Recent Activity</h5>
-    </div>
-    <div class="card-body">
-        <ul class="list-group">
-            {% for activity in recent_activities %}
-            <li class="list-group-item">{{ activity.description }} - {{ activity.timestamp|date:"Y-m-d H:i:s" }}</li>
-            {% empty %}
-            <li class="list-group-item">No recent activity</li>
-            {% endfor %}
-        </ul>
-    </div>
-</div>
+
+
+
+
+
+
 {% endblock %}
