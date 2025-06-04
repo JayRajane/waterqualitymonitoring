@@ -1,0 +1,5 @@
+mysql -u blissadmin -pBliss@Jarvis20
+
+CREATE USER 'blissadmin'@'%' IDENTIFIED BY 'Bliss@Jarvis20';
+GRANT ALL PRIVILEGES ON *.* TO 'blissadmin'@'%' WITH GRANT OPTION;
+FLUSH PRIVILEGES;
