@@ -68,8 +68,12 @@ MIDDLEWARE = [
 
 ]
 
-SESSION_COOKIE_SECURE = False  # Set to True only if using HTTPS
-CSRF_COOKIE_SECURE = False  # Set to True only if using HTTPS
+CSRF_TRUSTED_ORIGINS = [
+    'https://erp.impulseengineers.com',
+]
+
+SESSION_COOKIE_SECURE = True  # Set to True only if using HTTPS
+CSRF_COOKIE_SECURE = True  # Set to True only if using HTTPS
 
 # Add to settings.py
 LOGIN_URL = '/accounts/login/'
