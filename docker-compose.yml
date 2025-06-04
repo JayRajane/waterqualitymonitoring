@@ -18,7 +18,7 @@ services:
     image: mysql:8.0.34
     container_name: wtp-mysql
     environment:
-      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ROOT_PASSWORD: Impulse@jarvis2024
     ports:
       - "3308:3306"  # avoid conflict with local MySQL
     volumes:
