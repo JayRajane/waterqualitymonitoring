@@ -11,6 +11,8 @@ services:
       - DJANGO_SETTINGS_MODULE=water_monitoring_system.settings
     depends_on:
       - mysql
+    expose:
+      - 8001
     networks:
       - webnet
   
@@ -33,7 +35,7 @@ services:
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
     ports:
-      - "80:80"
+      - "8080:80"
     depends_on:
       - web
     networks:
@@ -44,3 +46,4 @@ volumes:
     external: true
 networks:
   webnet:
+    driver: bridge
