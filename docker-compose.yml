@@ -11,9 +11,7 @@ services:
       - DJANGO_SETTINGS_MODULE=water_monitoring_system.settings
     depends_on:
       - mysql
-    extra_hosts:
-      - "host.docker.internal:host-gateway"  # allows container to access your local MySQL
-
+  
   mysql:
     image: mysql:8.0.34
     container_name: wtp-mysql
