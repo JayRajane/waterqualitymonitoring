@@ -111,8 +111,8 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'bliss',
-        'USER': 'root',
-        'PASSWORD': 'Jarvis@786',
+        'USER': 'admin',
+        'PASSWORD': 'Impulse@jarvis2024',
         'HOST': 'host.docker.internal',
     }
 }
