@@ -110,7 +110,7 @@ DATABASES = {
         'NAME': 'bliss',
         'USER': 'root',
         'PASSWORD': 'Jarvis@786',
-        'HOST': 'localhost',
+        'HOST': 'host.docker.internal',
     }
 }
 
