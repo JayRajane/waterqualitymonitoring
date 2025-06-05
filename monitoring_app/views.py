@@ -771,8 +771,7 @@ def preview_data(request, user_id):
             if fields:
                 wq_queryset = WaterQualityData.objects.filter(
                     user=user,
-                    timestamp__date__gte=start_date,
-                    timestamp__date__lte=end_date
+                    timestamp__range=[start_date, end_date]
                 ).order_by('timestamp').prefetch_related('user')
                 
                 flow_queryset = Reading.objects.filter(
@@ -781,8 +780,7 @@ def preview_data(request, user_id):
                                   [f'flow{i}_total' for i in range(1, 11)] +
                                   [f'flow{i}_daily' for i in range(1, 11)] +
                                   [f'flow{i}_monthly' for i in range(1, 11)],
-                    recorded_at__date__gte=start_date,
-                    recorded_at__date__lte=end_date
+                    recorded_at__range=[start_date, end_date]
                 ).order_by('recorded_at').prefetch_related('user', 'machine')
                 
                 if time_interval > 0:
