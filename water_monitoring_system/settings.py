@@ -32,7 +32,7 @@ SECRET_KEY = 'django-insecure-your-secret-key-here'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['192.168.1.102','localhost','127.0.0.1']
+ALLOWED_HOSTS = ['192.168.1.104','localhost','127.0.0.1']
 
 # Application definition
 INSTALLED_APPS = [
@@ -106,11 +106,8 @@ WSGI_APPLICATION = 'water_monitoring_system.wsgi.application'
 # Database
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'bliss',
-        'USER': 'root',
-        'PASSWORD': 'Jarvis@786',
-        'HOST': 'localhost',
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
 

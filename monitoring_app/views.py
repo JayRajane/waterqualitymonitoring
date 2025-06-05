@@ -29,6 +29,7 @@ import pandas as pd
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
+import pytz  # Import pytz for timezone handling
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -901,6 +902,9 @@ def download_data(request, user_id):
             
             combined_data = {}
             
+            # Define IST timezone
+            ist_tz = pytz.timezone('Asia/Kolkata')
+            
             # Process regular data if any fields selected
             if fields:
                 wq_queryset = WaterQualityData.objects.filter(
@@ -939,7 +943,8 @@ def download_data(request, user_id):
                 flow_data = list(flow_queryset)
                 
                 for item in wq_data:
-                    rounded_ts = item.timestamp.replace(microsecond=0)
+                    # Convert timestamp to IST
+                    rounded_ts = item.timestamp.astimezone(ist_tz).replace(microsecond=0)
                     if rounded_ts not in combined_data:
                         combined_data[rounded_ts] = {'timestamp': rounded_ts.isoformat()}
                     if 'ph' in fields:
@@ -952,7 +957,8 @@ def download_data(request, user_id):
                         combined_data[rounded_ts]['tss'] = item.tss
                 
                 for item in flow_data:
-                    rounded_ts = item.recorded_at.replace(microsecond=0)
+                    # Convert recorded_at to IST
+                    rounded_ts = item.recorded_at.astimezone(ist_tz).replace(microsecond=0)
                     if rounded_ts not in combined_data:
                         combined_data[rounded_ts] = {'timestamp': rounded_ts.isoformat()}
                     if item.parameter in fields:
@@ -971,7 +977,8 @@ def download_data(request, user_id):
                         ).order_by('recorded_at')
                         
                         for reading in daily_readings:
-                            date_key = reading.recorded_at.replace(hour=0, minute=0, second=0, microsecond=0)
+                            # Convert recorded_at to IST and use date only (midnight)
+                            date_key = reading.recorded_at.astimezone(ist_tz).replace(hour=0, minute=0, second=0, microsecond=0)
                             if date_key not in daily_flow_data:
                                 daily_flow_data[date_key] = {'timestamp': date_key.isoformat()}
                             daily_flow_data[date_key][f'daily_flow{i}'] = reading.value
