@@ -29,7 +29,7 @@ import pandas as pd
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
-import pytz  # Import pytz for timezone handling
+import pytz  
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
