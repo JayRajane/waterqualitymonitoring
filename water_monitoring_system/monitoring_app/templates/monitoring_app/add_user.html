@@ -1,0 +1,382 @@
+{% extends 'monitoring_app/base.html' %}
+{% load widget_tweaks %}
+
+{% block content %}
+<style>
+    /* General container styling */
+    .sliding-header {
+        animation: slideIn 0.7s ease-out;
+        margin-bottom: 2.5rem;
+        text-align: center;
+    }
+
+    .sliding-header h1 {
+        font-size: 2.5rem;
+        background: linear-gradient(90deg, #ff6b6b, #4ecdc4);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: 700;
+    }
+
+    .sliding-header p {
+        color: #555;
+        font-size: 1.2rem;
+        font-style: italic;
+    }
+
+    /* Card styling */
+    .card {
+        border: none;
+        border-radius: 15px;
+        background: #ffffff;
+        box-shadow: 0 6px 25px rgba(0, 0, 0, 0.15);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        max-width: 1000px;
+        margin: 0 auto;
+    }
+
+    .card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    .card-header {
+        border-radius: 15px 15px 0 0;
+        padding: 1.75rem;
+        background: linear-gradient(135deg, #ff6b6b, #4ecdc4);
+        color: white;
+        text-align: center;
+    }
+
+    .card-header h5 {
+        font-weight: 600;
+        letter-spacing: 1px;
+    }
+
+    .card-body {
+        padding: 2rem;
+    }
+
+    /* Form elements */
+    .form-label {
+        font-weight: 600;
+        color: #333;
+        transition: color 0.3s ease;
+    }
+
+    .form-label:hover {
+        color: #ff6b6b;
+    }
+
+    .form-control, .form-select {
+        border-radius: 10px;
+        padding: 0.85rem;
+        border: 2px solid #e0e0e0;
+        transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.2s ease;
+    }
+
+    .form-control:focus, .form-select:focus {
+        border-color: #4ecdc4;
+        box-shadow: 0 0 10px rgba(78, 205, 196, 0.4);
+        transform: scale(1.02);
+    }
+
+    .form-check-label {
+        cursor: pointer;
+        color: #444;
+        transition: color 0.3s ease, transform 0.2s ease;
+    }
+
+    .form-check-label:hover {
+        color: #ff6b6b;
+        transform: translateX(5px);
+    }
+
+    .form-check-input:checked {
+        background-color: #4ecdc4;
+        border-color: #4ecdc4;
+        transform: scale(1.1);
+    }
+
+    .form-check-input {
+        transition: transform 0.2s ease;
+    }
+
+    /* Buttons */
+    .btn-primary {
+        padding: 0.85rem 2rem;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #ff6b6b, #4ecdc4);
+        border: none;
+        font-weight: 600;
+        transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 15px rgba(78, 205, 196, 0.4);
+        background: linear-gradient(135deg, #4ecdc4, #ff6b6b);
+    }
+
+    .btn-secondary {
+        padding: 0.85rem 2rem;
+        border-radius: 10px;
+        background: #e0e0e0;
+        color: #333;
+        border: none;
+        font-weight: 600;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .btn-secondary:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+        background: #d0d0d0;
+    }
+
+    /* Alerts */
+    .alert {
+        border-radius: 10px;
+        padding: 1.25rem;
+        margin-bottom: 2rem;
+        animation: fadeIn 0.6s ease-in;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .alert::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 5px;
+        height: 100%;
+        background: #4ecdc4;
+    }
+
+    /* Animations */
+    @keyframes slideIn {
+        from { transform: translateY(-30px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Checkbox grid */
+    .parameter-grid {
+        background: #f8f9fa;
+        padding: 1.5rem;
+        border-radius: 10px;
+        margin-bottom: 2rem;
+    }
+
+    .parameter-grid .col {
+        animation: fadeIn 0.5s ease-in;
+        animation-fill-mode: both;
+    }
+
+    .parameter-grid .col:nth-child(1) { animation-delay: 0.1s; }
+    .parameter-grid .col:nth-child(2) { animation-delay: 0.2s; }
+    .parameter-grid .col:nth-child(3) { animation-delay: 0.3s; }
+    .parameter-grid .col:nth-child(4) { animation-delay: 0.4s; }
+    .parameter-grid .col:nth-child(5) { animation-delay: 0.5s; }
+    .parameter-grid .col:nth-child(6) { animation-delay: 0.6s; }
+    .parameter-grid .col:nth-child(7) { animation-delay: 0.7s; }
+    .parameter-grid .col:nth-child(8) { animation-delay: 0.8s; }
+    .parameter-grid .col:nth-child(9) { animation-delay: 0.9s; }
+    .parameter-grid .col:nth-child(10) { animation-delay: 1s; }
+</style>
+
+<div class="sliding-header">
+    <h1>{% if edit_mode %}Edit User{% else %}Add New User{% endif %}</h1>
+    <p>{% if edit_mode %}Update user account details{% else %}Create a new user account{% endif %}</p>
+</div>
+
+{% if messages %}
+    <div class="messages mb-4">
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">User Details</h5>
+    </div>
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            <div class="row mb-4">
+                <div class="col-md-6 mb-3 mb-md-0">
+                    <label for="id_username" class="form-label">Username</label>
+                    {{ form.username|add_class:"form-control" }}
+                    {% if form.username.errors %}
+                        <div class="text-danger mt-2">{{ form.username.errors }}</div>
+                    {% endif %}
+                </div>
+                <div class="col-md-6">
+                    <label for="id_email" class="form-label">Email</label>
+                    {{ form.email|add_class:"form-control" }}
+                    {% if form.email.errors %}
+                        <div class="text-danger mt-2">{{ form.email.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="row mb-4">
+                <div class="col-md-6 mb-3 mb-md-0">
+                    <label for="id_first_name" class="form-label">First Name</label>
+                    {{ form.first_name|add_class:"form-control" }}
+                </div>
+                <div class="col-md-6">
+                    <label for="id_last_name" class="form-label">Last Name</label>
+                    {{ form.last_name|add_class:"form-control" }}
+                </div>
+            </div>
+            
+            <div class="row mb-4">
+                <div class="col-md-6 mb-3 mb-md-0">
+                    <label for="id_role" class="form-label">Role</label>
+                    {{ form.role|add_class:"form-select" }}
+                </div>
+                <div class="col-md-6">
+                    <label for="id_contact_number" class="form-label">Contact Number</label>
+                    {{ form.contact_number|add_class:"form-control" }}
+                </div>
+            </div>
+            
+            <div class="mb-4">
+                <label for="id_address" class="form-label">Address</label>
+                {{ form.address|add_class:"form-control" }}
+            </div>
+            
+            <div class="mb-4 parameter-grid">
+                <label class="form-label fw-bold">Select Parameters to Monitor</label>
+                <div class="row row-cols-2 row-cols-md-4 g-3">
+                    <div class="col">
+                        <div class="form-check">
+                            {{ form.show_ph|add_class:"form-check-input" }}
+                            <label class="form-check-label" for="{{ form.show_ph.id_for_label }}">pH</label>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="form-check">
+                            {{ form.show_cod|add_class:"form-check-input" }}
+                            <label class="form-check-label" for="{{ form.show_cod.id_for_label }}">COD</label>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="form-check">
+                            {{ form.show_bod|add_class:"form-check-input" }}
+                            <label class="form-check-label" for="{{ form.show_bod.id_for_label }}">BOD</label>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="form-check">
+                            {{ form.show_tss|add_class:"form-check-input" }}
+                            <label class="form-check-label" for="{{ form.show_tss.id_for_label }}">TSS</label>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="form-check">
+                            {{ form.show_flow1|add_class:"form-check-input" }}
+                            <label class="form-check-label" for="{{ form.show_flow1.id_for_label }}">Flow 1</label>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="form-check">
+                            {{ form.show_flow2|add_class:"form-check-input" }}
+                            <label class="form-check-label" for="{{ form.show_flow2.id_for_label }}">Flow 2</label>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="form-check">
+                            {{ form.show_flow3|add_class:"form-check-input" }}
+                            <label class="form-check-label" for="{{ form.show_flow3.id_for_label }}">Flow 3</label>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="form-check">
+                            {{ form.show_flow4|add_class:"form-check-input" }}
+                            <label class="form-check-label" for="{{ form.show_flow4.id_for_label }}">Flow 4</label>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="form-check">
+                            {{ form.show_flow5|add_class:"form-check-input" }}
+                            <label class="form-check-label" for="{{ form.show_flow5.id_for_label }}">Flow 5</label>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="form-check">
+                            {{ form.show_flow6|add_class:"form-check-input" }}
+                            <label class="form-check-label" for="{{ form.show_flow6.id_for_label }}">Flow 6</label>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="form-check">
+                            {{ form.show_flow7|add_class:"form-check-input" }}
+                            <label class="form-check-label" for="{{ form.show_flow7.id_for_label }}">Flow 7</label>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="form-check">
+                            {{ form.show_flow8|add_class:"form-check-input" }}
+                            <label class="form-check-label" for="{{ form.show_flow8.id_for_label }}">Flow 8</label>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="form-check">
+                            {{ form.show_flow9|add_class:"form-check-input" }}
+                            <label class="form-check-label" for="{{ form.show_flow9.id_for_label }}">Flow 9</label>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="form-check">
+                            {{ form.show_flow10|add_class:"form-check-input" }}
+                            <label class="form-check-label" for="{{ form.show_flow10.id_for_label }}">Flow 10</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mb-4">
+                <div class="col-md-6 mb-3 mb-md-0">
+                    <label for="id_state" class="form-label">State</label>
+                    {{ form.state|add_class:"form-control" }}
+                </div>
+                <div class="col-md-6">
+                    <label for="id_state_code" class="form-label">State Code</label>
+                    {{ form.state_code|add_class:"form-control" }}
+                </div>
+            </div>
+            
+            <div class="d-grid gap-3 d-md-flex justify-content-md-end">
+                <button type="submit" class="btn btn-primary">{% if edit_mode %}Update User{% else %}Create User{% endif %}</button>
+                <a href="{% url 'user_management' %}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    {% for i in "12345678910" %}
+    $('#id_show_flow{{ i }}').change(function() {
+        if ($(this).is(':checked')) {
+            // Optionally, handle additional logic for flow-related checkboxes if needed
+        }
+    });
+    {% endfor %}
+});
+</script>
+{% endblock %}
+{% endblock %}

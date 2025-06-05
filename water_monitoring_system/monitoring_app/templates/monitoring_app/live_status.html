@@ -1,0 +1,827 @@
+{% extends 'monitoring_app/base.html' %}
+
+{% block content %}
+<style>
+    .sliding-header {
+        text-align: center;
+        padding: 2rem;
+        background: linear-gradient(135deg, #007bff, #00c4b4);
+        color: white;
+        border-radius: 10px;
+        margin-bottom: 2rem;
+        animation: slideIn 1s ease-in-out;
+    }
+
+    .sliding-header h1 {
+        font-size: 2.0rem;
+        margin-bottom: 0.5rem;
+        font-weight: 700;
+    }
+
+    .sliding-header p {
+        font-size: 1.2rem;
+        opacity: 0.9;
+    }
+
+    .sliding-header small {
+        font-size: 0.9rem;
+        opacity: 0.8;
+        display: block;
+        margin-top: 0.5rem;
+    }
+
+    .data-card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        background-color: #fff;
+        padding: 2rem;
+        text-align: center;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .data-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    .data-card h3 {
+        font-size: 1.4rem;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 1rem;
+    }
+
+    .data-card p {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #007bff;
+        margin-bottom: 0;
+    }
+
+    .icon {
+        font-size: 2.5rem;
+        color: #00c4b4;
+        margin-bottom: 1rem;
+    }
+
+    .alert-danger {
+        border-radius: 10px;
+        padding: 1rem;
+        font-weight: 500;
+        background-color: #dc3545;
+        color: white;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    .card-header {
+        background: #007bff;
+        border-radius: 15px 15px 0 0;
+        padding: 1.5rem;
+    }
+
+    .card-header h5 {
+        font-weight: 600;
+        margin: 0;
+    }
+
+    .card-body {
+        padding: 2rem;
+    }
+
+    .table {
+        margin-bottom: 0;
+    }
+
+    .table th {
+        font-weight: 600;
+        color: #333;
+        border-bottom: 2px solid #dee2e6;
+    }
+
+    .table td {
+        vertical-align: middle;
+        padding: 1rem;
+    }
+
+    .table-striped tbody tr:nth-of-type(odd) {
+        background-color: rgba(0, 123, 255, 0.05);
+    }
+
+    .table tbody tr:hover {
+        background-color: rgba(0, 123, 255, 0.1);
+    }
+
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @media (max-width: 768px) {
+        .sliding-header h1 {
+            font-size: 2rem;
+        }
+
+        .sliding-header p {
+            font-size: 1rem;
+        }
+
+        .sliding-header small {
+            font-size: 0.8rem;
+        }
+
+        .data-card h3 {
+            font-size: 1.3rem;
+        }
+
+        .data-card p {
+            font-size: 1.5rem;
+        }
+
+        .table-responsive {
+            font-size: 0.9rem;
+        }
+    }
+</style>
+
+<!-- Include Font Awesome for icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<div class="sliding-header">
+    <h1>Live Status for {{ user.username }}</h1>
+    <p>Real-time water quality monitoring data</p>
+    <small id="last-updated">Last updated: Never</small>
+</div>
+
+<div id="connection-error" class="alert alert-danger mb-3" style="display: none;">
+    <i class="fas fa-exclamation-circle"></i> Connection error. Unable to fetch latest data. Please check your network connection.
+</div>
+
+<div class="row text-center mb-4">
+    {% if user.show_ph %}
+    <div class="col-md-4 mb-3">
+        <div class="data-card">
+            <i class="fas fa-vial icon"></i>
+            <h3>pH</h3>
+            <p id="phValue">-</p>
+        </div>
+    </div>
+    {% endif %}
+    {% if user.show_cod %}
+    <div class="col-md-4 mb-3">
+        <div class="data-card">
+            <i class="fas fa-flask icon"></i>
+            <h3>COD</h3>
+            <p id="codValue">-</p>
+        </div>
+    </div>
+    {% endif %}
+    {% if user.show_bod %}
+    <div class="col-md-4 mb-3">
+        <div class="data-card">
+            <i class="fas fa-flask icon"></i>
+            <h3>BOD</h3>
+            <p id="bodValue">-</p>
+        </div>
+    </div>
+    {% endif %}
+    {% if user.show_tss %}
+    <div class="col-md-4 mb-3">
+        <div class="data-card">
+            <i class="fas fa-tint icon"></i>
+            <h3>TSS</h3>
+            <p id="tssValue">-</p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% if user.show_flow1 %}
+<div class="row text-center mb-3">
+    <div class="col-md-3">
+        <div class="data-card">
+            <i class="fas fa-water icon"></i>
+            <h3>Flow 1 (L/min)</h3>
+            <p id="flow1Value">-</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="data-card">
+            <i class="fas fa-water icon"></i>
+            <h3>Flow 1 Total (L)</h3>
+            <p id="flow1TotalValue">-</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="data-card">
+            <i class="fas fa-water icon"></i>
+            <h3>Flow 1 Daily (L)</h3>
+            <p id="flow1DailyValue">-</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="data-card">
+            <i class="fas fa-water icon"></i>
+            <h3>Flow 1 Monthly (L)</h3>
+            <p id="flow1MonthlyValue">-</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% if user.show_flow2 %}
+<div class="row text-center mb-3">
+    <div class="col-md-3">
+        <div class="data-card">
+            <i class="fas fa-water icon"></i>
+            <h3>Flow 2 (L/min)</h3>
+            <p id="flow2Value">-</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="data-card">
+            <i class="fas fa-water icon"></i>
+            <h3>Flow 2 Total (L)</h3>
+            <p id="flow2TotalValue">-</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="data-card">
+            <i class="fas fa-water icon"></i>
+            <h3>Flow 2 Daily (L)</h3>
+            <p id="flow2DailyValue">-</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="data-card">
+            <i class="fas fa-water icon"></i>
+            <h3>Flow 2 Monthly (L)</h3>
+            <p id="flow2MonthlyValue">-</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% if user.show_flow3 %}
+<div class="row text-center mb-3">
+    <div class="col-md-3">
+        <div class="data-card">
+            <i class="fas fa-water icon"></i>
+            <h3>Flow 3 (L/min)</h3>
+            <p id="flow3Value">-</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="data-card">
+            <i class="fas fa-water icon"></i>
+            <h3>Flow 3 Total (L)</h3>
+            <p id="flow3TotalValue">-</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="data-card">
+            <i class="fas fa-water icon"></i>
+            <h3>Flow 3 Daily (L)</h3>
+            <p id="flow3DailyValue">-</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="data-card">
+            <i class="fas fa-water icon"></i>
+            <h3>Flow 3 Monthly (L)</h3>
+            <p id="flow3MonthlyValue">-</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% if user.show_flow4 %}
+<div class="row text-center mb-3">
+    <div class="col-md-3">
+        <div class="data-card">
+            <i class="fas fa-water icon"></i>
+            <h3>Flow 4 (L/min)</h3>
+            <p id="flow4Value">-</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="data-card">
+            <i class="fas fa-water icon"></i>
+            <h3>Flow 4 Total (L)</h3>
+            <p id="flow4TotalValue">-</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="data-card">
+            <i class="fas fa-water icon"></i>
+            <h3>Flow 4 Daily (L)</h3>
+            <p id="flow4DailyValue">-</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="data-card">
+            <i class="fas fa-water icon"></i>
+            <h3>Flow 4 Monthly (L)</h3>
+            <p id="flow4MonthlyValue">-</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% if user.show_flow5 %}
+<div class="row text-center mb-3">
+    <div class="col-md-3">
+        <div class="data-card">
+            <i class="fas fa-water icon"></i>
+            <h3>Flow 5 (L/min)</h3>
+            <p id="flow5Value">-</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="data-card">
+            <i class="fas fa-water icon"></i>
+            <h3>Flow 5 Total (L)</h3>
+            <p id="flow5TotalValue">-</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="data-card">
+            <i class="fas fa-water icon"></i>
+            <h3>Flow 5 Daily (L)</h3>
+            <p id="flow5DailyValue">-</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="data-card">
+            <i class="fas fa-water icon"></i>
+            <h3>Flow 5 Monthly (L)</h3>
+            <p id="flow5MonthlyValue">-</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% if user.show_flow6 %}
+<div class="row text-center mb-3">
+    <div class="col-md-3">
+        <div class="data-card">
+            <i class="fas fa-water icon"></i>
+            <h3>Flow 6 (L/min)</h3>
+            <p id="flow6Value">-</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="data-card">
+            <i class="fas fa-water icon"></i>
+            <h3>Flow 6 Total (L)</h3>
+            <p id="flow6TotalValue">-</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="data-card">
+            <i class="fas fa-water icon"></i>
+            <h3>Flow 6 Daily (L)</h3>
+            <p id="flow6DailyValue">-</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="data-card">
+            <i class="fas fa-water icon"></i>
+            <h3>Flow 6 Monthly (L)</h3>
+            <p id="flow6MonthlyValue">-</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% if user.show_flow7 %}
+<div class="row text-center mb-3">
+    <div class="col-md-3">
+        <div class="data-card">
+            <i class="fas fa-water icon"></i>
+            <h3>Flow 7 (L/min)</h3>
+            <p id="flow7Value">-</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="data-card">
+            <i class="fas fa-water icon"></i>
+            <h第五 class="data-card">
+            <i class="fas fa-water icon"></i>
+            <h3>Flow 7 Total (L)</h3>
+            <p id="flow7TotalValue">-</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="data-card">
+            <i class="fas fa-water icon"></i>
+            <h3>Flow 7 Daily (L)</h3>
+            <p id="flow7DailyValue">-</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="data-card">
+            <i class="fas fa-water icon"></i>
+            <h3>Flow 7 Monthly (L)</h3>
+            <p id="flow7MonthlyValue">-</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% if user.show_flow8 %}
+<div class="row text-center mb-3">
+    <div class="col-md-3">
+        <div class="data-card">
+            <i class="fas fa-water icon"></i>
+            <h3>Flow 8 (L/min)</h3>
+            <p id="flow8Value">-</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="data-card">
+            <i class="fas fa-water icon"></i>
+            <h3>Flow 8 Total (L)</h3>
+            <p id="flow8TotalValue">-</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="data-card">
+            <i class="fas fa-water icon"></i>
+            <h3>Flow 8 Daily (L)</h3>
+            <p id="flow8DailyValue">-</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="data-card">
+            <i class="fas fa-water icon"></i>
+            <h3>Flow 8 Monthly (L)</h3>
+            <p id="flow8MonthlyValue">-</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% if user.show_flow9 %}
+<div class="row text-center mb-3">
+    <div class="col-md-3">
+        <div class="data-card">
+            <i class="fas fa-water icon"></i>
+            <h3>Flow 9 (L/min)</h3>
+            <p id="flow9Value">-</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="data-card">
+            <i class="fas fa-water icon"></i>
+            <h3>Flow 9 Total (L)</h3>
+            <p id="flow9TotalValue">-</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="data-card">
+            <i class="fas fa-water icon"></i>
+            <h3>Flow 9 Daily (L)</h3>
+            <p id="flow9DailyValue">-</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="data-card">
+            <i class="fas fa-water icon"></i>
+            <h3>Flow 9 Monthly (L)</h3>
+            <p id="flow9MonthlyValue">-</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% if user.show_flow10 %}
+<div class="row text-center mb-3">
+    <div class="col-md-3">
+        <div class="data-card">
+            <i class="fas fa-water icon"></i>
+            <h3>Flow 10 (L/min)</h3>
+            <p id="flow10Value">-</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="data-card">
+            <i class="fas fa-water icon"></i>
+            <h3>Flow 10 Total (L)</h3>
+            <p id="flow10TotalValue">-</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="data-card">
+            <i class="fas fa-water icon"></i>
+            <h3>Flow 10 Daily (L)</h3>
+            <p id="flow10DailyValue">-</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="data-card">
+            <i class="fas fa-water icon"></i>
+            <h3>Flow 10 Monthly (L)</h3>
+            <p id="flow10MonthlyValue">-</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="card"> 
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="fas fa-table icon"></i>Recent Data</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped table-bordered">
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        {% if user.show_ph %}<th>pH</th>{% endif %}
+                        {% if user.show_cod %}<th>COD (mg/L)</th>{% endif %}
+                        {% if user.show_bod %}<th>BOD (mg/L)</th>{% endif %}
+                        {% if user.show_tss %}<th>TSS (mg/L)</th>{% endif %}
+                        {% if user.show_flow1 %}
+                            <th>Flow 1 (L/min)</th>
+                            <th>Flow 1 Total (L)</th>
+                            <th>Flow 1 Daily (L)</th>
+                            <th>Flow 1 Monthly (L)</th>
+                        {% endif %}
+                        {% if user.show_flow2 %}
+                            <th>Flow 2 (L/min)</th>
+                            <th>Flow 2 Total (L)</th>
+                            <th>Flow 2 Daily (L)</th>
+                            <th>Flow 2 Monthly (L)</th>
+                        {% endif %}
+                        {% if user.show_flow3 %}
+                            <th>Flow 3 (L/min)</th>
+                            <th>Flow 3 Total (L)</th>
+                            <th>Flow 3 Daily (L)</th>
+                            <th>Flow 3 Monthly (L)</th>
+                        {% endif %}
+                        {% if user.show_flow4 %}
+                            <th>Flow 4 (L/min)</th>
+                            <th>Flow 4 Total (L)</th>
+                            <th>Flow 4 Daily (L)</th>
+                            <th>Flow 4 Monthly (L)</th>
+                        {% endif %}
+                        {% if user.show_flow5 %}
+                            <th>Flow 5 (L/min)</th>
+                            <th>Flow 5 Total (L)</th>
+                            <th>Flow 5 Daily (L)</th>
+                            <th>Flow 5 Monthly (L)</th>
+                        {% endif %}
+                        {% if user.show_flow6 %}
+                            <th>Flow 6 (L/min)</th>
+                            <th>Flow 6 Total (L)</th>
+                            <th>Flow 6 Daily (L)</th>
+                            <th>Flow 6 Monthly (L)</th>
+                        {% endif %}
+                        {% if user.show_flow7 %}
+                            <th>Flow 7 (L/min)</th>
+                            <th>Flow 7 Total (L)</th>
+                            <th>Flow 7 Daily (L)</th>
+                            <th>Flow 7 Monthly (L)</th>
+                        {% endif %}
+                        {% if user.show_flow8 %}
+                            <th>Flow 8 (L/min)</th>
+                            <th>Flow 8 Total (L)</th>
+                            <th>Flow 8 Daily (L)</th>
+                            <th>Flow 8 Monthly (L)</th>
+                        {% endif %}
+                        {% if user.show_flow9 %}
+                            <th>Flow 9 (L/min)</th>
+                            <th>Flow 9 Total (L)</th>
+                            <th>Flow 9 Daily (L)</th>
+                            <th>Flow 9 Monthly (L)</th>
+                        {% endif %}
+                        {% if user.show_flow10 %}
+                            <th>Flow 10 (L/min)</th>
+                            <th>Flow 10 Total (L)</th>
+                            <th>Flow 10 Daily (L)</th>
+                            <th>Flow 10 Monthly (L)</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody id="recent-data-table">
+                    {% for entry in combined_data %}
+                    <tr>
+                        <td>{{ entry.timestamp|date:"Y-m-d H:i:s" }}</td>
+                        {% if user.show_ph %}
+                        <td>{{ entry.ph|floatformat:2|default:"-" }}</td>
+                        {% endif %}
+                        {% if user.show_cod %}
+                        <td>{{ entry.cod|floatformat:2|default:"-" }}</td>
+                        {% endif %}
+                        {% if user.show_bod %}
+                        <td>{{ entry.bod|floatformat:2|default:"-" }}</td>
+                        {% endif %}
+                        {% if user.show_tss %}
+                        <td>{{ entry.tss|floatformat:2|default:"-" }}</td>
+                        {% endif %}
+                        {% if user.show_flow1 %}
+                        <td>{{ entry.flow1|floatformat:2|default:"-" }}</td>
+                        <td>{{ entry.flow1_total|floatformat:2|default:"-" }}</td>
+                        <td>{{ entry.flow1_daily|floatformat:2|default:"-" }}</td>
+                        <td>{{ entry.flow1_monthly|floatformat:2|default:"-" }}</td>
+                        {% endif %}
+                        {% if user.show_flow2 %}
+                        <td>{{ entry.flow2|floatformat:2|default:"-" }}</td>
+                        <td>{{ entry.flow2_total|floatformat:2|default:"-" }}</td>
+                        <td>{{ entry.flow2_daily|floatformat:2|default:"-" }}</td>
+                        <td>{{ entry.flow2_monthly|floatformat:2|default:"-" }}</td>
+                        {% endif %}
+                        {% if user.show_flow3 %}
+                        <td>{{ entry.flow3|floatformat:2|default:"-" }}</td>
+                        <td>{{ entry.flow3_total|floatformat:2|default:"-" }}</td>
+                        <td>{{ entry.flow3_daily|floatformat:2|default:"-" }}</td>
+                        <td>{{ entry.flow3_monthly|floatformat:2|default:"-" }}</td>
+                        {% endif %}
+                        {% if user.show_flow4 %}
+                        <td>{{ entry.flow4|floatformat:2|default:"-" }}</td>
+                        <td>{{ entry.flow4_total|floatformat:2|default:"-" }}</td>
+                        <td>{{ entry.flow4_daily|floatformat:2|default:"-" }}</td>
+                        <td>{{ entry.flow4_monthly|floatformat:2|default:"-" }}</td>
+                        {% endif %}
+                        {% if user.show_flow5 %}
+                        <td>{{ entry.flow5|floatformat:2|default:"-" }}</td>
+                        <td>{{ entry.flow5_total|floatformat:2|default:"-" }}</td>
+                        <td>{{ entry.flow5_daily|floatformat:2|default:"-" }}</td>
+                        <td>{{ entry.flow5_monthly|floatformat:2|default:"-" }}</td>
+                        {% endif %}
+                        {% if user.show_flow6 %}
+                        <td>{{ entry.flow6|floatformat:2|default:"-" }}</td>
+                        <td>{{ entry.flow6_total|floatformat:2|default:"-" }}</td>
+                        <td>{{ entry.flow6_daily|floatformat:2|default:"-" }}</td>
+                        <td>{{ entry.flow6_monthly|floatformat:2|default:"-" }}</td>
+                        {% endif %}
+                        {% if user.show_flow7 %}
+                        <td>{{ entry.flow7|floatformat:2|default:"-" }}</td>
+                        <td>{{ entry.flow7_total|floatformat:2|default:"-" }}</td>
+                        <td>{{ entry.flow7_daily|floatformat:2|default:"-" }}</td>
+                        <td>{{ entry.flow7_monthly|floatformat:2|default:"-" }}</td>
+                        {% endif %}
+                        {% if user.show_flow8 %}
+                        <td>{{ entry.flow8|floatformat:2|default:"-" }}</td>
+                        <td>{{ entry.flow8_total|floatformat:2|default:"-" }}</td>
+                        <td>{{ entry.flow8_daily|floatformat:2|default:"-" }}</td>
+                        <td>{{ entry.flow8_monthly|floatformat:2|default:"-" }}</td>
+                        {% endif %}
+                        {% if user.show_flow9 %}
+                        <td>{{ entry.flow9|floatformat:2|default:"-" }}</td>
+                        <td>{{ entry.flow9_total|floatformat:2|default:"-" }}</td>
+                        <td>{{ entry.flow9_daily|floatformat:2|default:"-" }}</td>
+                        <td>{{ entry.flow9_monthly|floatformat:2|default:"-" }}</td>
+                        {% endif %}
+                        {% if user.show_flow10 %}
+                        <td>{{ entry.flow10|floatformat:2|default:"-" }}</td>
+                        <td>{{ entry.flow10_total|floatformat:2|default:"-" }}</td>
+                        <td>{{ entry.flow10_daily|floatformat:2|default:"-" }}</td>
+                        <td>{{ entry.flow10_monthly|floatformat:2|default:"-" }}</td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    function updateLiveData() {
+        console.log('Fetching water quality data...');
+        $.ajax({
+            url: '{% url "water-quality-latest" %}?user_id={{ user.id }}',
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            success: function(data) {
+                console.log('Water quality data:', data);
+                $('#connection-error').hide();
+                $('#phValue').text(data.ph !== null ? parseFloat(data.ph).toFixed(2) : '-');
+                $('#codValue').text(data.cod !== null ? parseFloat(data.cod).toFixed(2) : '-');
+                $('#bodValue').text(data.bod !== null ? parseFloat(data.bod).toFixed(2) : '-');
+                $('#tssValue').text(data.tss !== null ? parseFloat(data.tss).toFixed(2) : '-');
+                $('#last-updated').text('Last updated: ' + new Date().toLocaleString());
+            },
+            error: function(xhr, status, error) {
+                console.error('Water quality AJAX error:', status, error, xhr.responseText);
+                $('#connection-error').show();
+            }
+        });
+
+        console.log('Fetching readings data...');
+        $.ajax({
+            url: '{% url "readings-latest" %}?user_id={{ user.id }}',
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            success: function(data) {
+                console.log('Readings data:', data);
+                $('#connection-error').hide();
+                {% if user.show_flow1 %}
+                $('#flow1Value').text(data.flow1 ? parseFloat(data.flow1.value).toFixed(2) : '-');
+                $('#flow1TotalValue').text(data.flow1_total ? parseFloat(data.flow1_total.value).toFixed(2) : '-');
+                $('#flow1DailyValue').text(data.flow1_daily ? parseFloat(data.flow1_daily.value).toFixed(2) : '-');
+                $('#flow1MonthlyValue').text(data.flow1_monthly ? parseFloat(data.flow1_monthly.value).toFixed(2) : '-');
+                {% endif %}
+                {% if user.show_flow2 %}
+                $('#flow2Value').text(data.flow2 ? parseFloat(data.flow2.value).toFixed(2) : '-');
+                $('#flow2TotalValue').text(data.flow2_total ? parseFloat(data.flow2_total.value).toFixed(2) : '-');
+                $('#flow2DailyValue').text(data.flow2_daily ? parseFloat(data.flow2_daily.value).toFixed(2) : '-');
+                $('#flow2MonthlyValue').text(data.flow2_monthly ? parseFloat(data.flow2_monthly.value).toFixed(2) : '-');
+                {% endif %}
+                {% if user.show_flow3 %}
+                $('#flow3Value').text(data.flow3 ? parseFloat(data.flow3.value).toFixed(2) : '-');
+                $('#flow3TotalValue').text(data.flow3_total ? parseFloat(data.flow3_total.value).toFixed(2) : '-');
+                $('#flow3DailyValue').text(data.flow3_daily ? parseFloat(data.flow3_daily.value).toFixed(2) : '-');
+                $('#flow3MonthlyValue').text(data.flow3_monthly ? parseFloat(data.flow3_monthly.value).toFixed(2) : '-');
+                {% endif %}
+                {% if user.show_flow4 %}
+                $('#flow4Value').text(data.flow4 ? parseFloat(data.flow4.value).toFixed(2) : '-');
+                $('#flow4TotalValue').text(data.flow4_total ? parseFloat(data.flow4_total.value).toFixed(2) : '-');
+                $('#flow4DailyValue').text(data.flow4_daily ? parseFloat(data.flow4_daily.value).toFixed(2) : '-');
+                $('#flow4MonthlyValue').text(data.flow4_monthly ? parseFloat(data.flow4_monthly.value).toFixed(2) : '-');
+                {% endif %}
+                {% if user.show_flow5 %}
+                $('#flow5Value').text(data.flow5 ? parseFloat(data.flow5.value).toFixed(2) : '-');
+                $('#flow5TotalValue').text(data.flow5_total ? parseFloat(data.flow5_total.value).toFixed(2) : '-');
+                $('#flow5DailyValue').text(data.flow5_daily ? parseFloat(data.flow5_daily.value).toFixed(2) : '-');
+                $('#flow5MonthlyValue').text(data.flow5_monthly ? parseFloat(data.flow5_monthly.value).toFixed(2) : '-');
+                {% endif %}
+                {% if user.show_flow6 %}
+                $('#flow6Value').text(data.flow6 ? parseFloat(data.flow6.value).toFixed(2) : '-');
+                $('#flow6TotalValue').text(data.flow6_total ? parseFloat(data.flow6_total.value).toFixed(2) : '-');
+                $('#flow6DailyValue').text(data.flow6_daily ? parseFloat(data.flow6_daily.value).toFixed(2) : '-');
+                $('#flow6MonthlyValue').text(data.flow6_monthly ? parseFloat(data.flow6_monthly.value).toFixed(2) : '-');
+                {% endif %}
+                {% if user.show_flow7 %}
+                $('#flow7Value').text(data.flow7 ? parseFloat(data.flow7.value).toFixed(2) : '-');
+                $('#flow7TotalValue').text(data.flow7_total ? parseFloat(data.flow7_total.value).toFixed(2) : '-');
+                $('#flow7DailyValue').text(data.flow7_daily ? parseFloat(data.flow7_daily.value).toFixed(2) : '-');
+                $('#flow7MonthlyValue').text(data.flow7_monthly ? parseFloat(data.flow7_monthly.value).toFixed(2) : '-');
+                {% endif %}
+                {% if user.show_flow8 %}
+                $('#flow8Value').text(data.flow8 ? parseFloat(data.flow8.value).toFixed(2) : '-');
+                $('#flow8TotalValue').text(data.flow8_total ? parseFloat(data.flow8_total.value).toFixed(2) : '-');
+                $('#flow8DailyValue').text(data.flow8_daily ? parseFloat(data.flow8_daily.value).toFixed(2) : '-');
+                $('#flow8MonthlyValue').text(data.flow8_monthly ? parseFloat(data.flow8_monthly.value).toFixed(2) : '-');
+                {% endif %}
+                {% if user.show_flow9 %}
+                $('#flow9Value').text(data.flow9 ? parseFloat(data.flow9.value).toFixed(2) : '-');
+                $('#flow9TotalValue').text(data.flow9_total ? parseFloat(data.flow9_total.value).toFixed(2) : '-');
+                $('#flow9DailyValue').text(data.flow9_daily ? parseFloat(data.flow9_daily.value).toFixed(2) : '-');
+                $('#flow9MonthlyValue').text(data.flow9_monthly ? parseFloat(data.flow9_monthly.value).toFixed(2) : '-');
+                {% endif %}
+                {% if user.show_flow10 %}
+                $('#flow10Value').text(data.flow10 ? parseFloat(data.flow10.value).toFixed(2) : '-');
+                $('#flow10TotalValue').text(data.flow10_total ? parseFloat(data.flow10_total.value).toFixed(2) : '-');
+                $('#flow10DailyValue').text(data.flow10_daily ? parseFloat(data.flow10_daily.value).toFixed(2) : '-');
+                $('#flow10MonthlyValue').text(data.flow10_monthly ? parseFloat(data.flow10_monthly.value).toFixed(2) : '-');
+                {% endif %}
+            },
+            error: function(xhr, status, error) {
+                console.error('Readings AJAX error:', status, error, xhr.responseText);
+                $('#connection-error').show();
+            }
+        });
+
+        // Add this new AJAX call to update recent data table
+        $.ajax({
+            url: '{% url "live_status" user.id %}',
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            success: function(data) {
+                // Parse the response and update the table
+                var $newContent = $(data).find('#recent-data-table').html();
+                $('#recent-data-table').html($newContent);
+            },
+            error: function(xhr, status, error) {
+                console.error('Recent data AJAX error:', status, error, xhr.responseText);
+            }
+        });
+    }
+
+    updateLiveData();
+    setInterval(updateLiveData, 10000); // Update every 10 seconds
+});
+</script>
+{% endblock %}

@@ -1,0 +1,241 @@
+{% extends 'monitoring_app/base.html' %}
+
+{% block content %}
+<style>
+    .sliding-header {
+        text-align: center;
+        padding: 2rem;
+        background: linear-gradient(135deg, #007bff, #00c4b4);
+        color: white;
+        border-radius: 10px;
+        margin-bottom: 2rem;
+        animation: slideIn 1s ease-in-out;
+    }
+
+    .sliding-header h1 {
+        font-size: 2.5rem;
+        margin-bottom: 0.5rem;
+        font-weight: 700;
+    }
+
+    .sliding-header p {
+        font-size: 1.2rem;
+        opacity: 0.9;
+    }
+
+    .data-card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        background-color: #fff;
+        padding: 2rem;
+        text-align: center;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .data-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    .data-card h3 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 1rem;
+    }
+
+    .data-card p {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #007bff;
+        margin-bottom: 0;
+    }
+
+    .icon {
+        font-size: 2.5rem;
+        color: #00c4b4;
+        margin-bottom: 1rem;
+    }
+
+    .btn-primary {
+        background-color: #007bff;
+        border: none;
+        border-radius: 25px;
+        padding: 0.75rem 1.5rem;
+        font-size: 1rem;
+        font-weight: 500;
+        margin: 0 0.5rem;
+        transition: background-color 0.3s ease;
+    }
+
+    .btn-primary:hover {
+        background-color: #0056b3;
+    }
+
+    .btn-primary i {
+        margin-right: 0.5rem;
+    }
+
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @media (max-width: 768px) {
+        .sliding-header h1 {
+            font-size: 2rem;
+        }
+
+        .sliding-header p {
+            font-size: 1rem;
+        }
+
+        .data-card h3 {
+            font-size: 1.3rem;
+        }
+
+        .data-card p {
+            font-size: 1.5rem;
+        }
+
+        .btn-primary {
+            padding: 0.6rem 1.2rem;
+            font-size: 0.9rem;
+        }
+    }
+</style>
+
+<!-- Include Font Awesome for icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<div class="sliding-header">
+    <h1>Welcome, {{ user.username }}</h1>
+    <p>Your water quality monitoring dashboard</p>
+</div>
+
+<div class="row text-center mb-4">
+    {% if user.show_ph %}
+    <div class="col-md-4 mb-3">
+        <div class="data-card">
+            <i class="fas fa-vial icon"></i>
+            <h3>pH</h3>
+            <p id="phValue">-</p>
+        </div>
+    </div>
+    {% endif %}
+    {% if user.show_flow1 %}
+    <div class="col-md-4 mb-3">
+        <div class="data-card">
+            <i class="fas fa-water icon"></i>
+            <h3>Flow 1</h3>
+            <p id="flow1Value">-</p>
+        </div>
+    </div>
+    {% endif %}
+    {% if user.show_flow2 %}
+    <div class="col-md-4 mb-3">
+        <div class="data-card">
+            <i class="fas fa-water icon"></i>
+            <h3>Flow 2</h3>
+            <p id="flow2Value">-</p>
+        </div>
+    </div>
+    {% endif %}
+    {% if user.show_flow3 %}
+    <div class="col-md-4 mb-3">
+        <div class="data-card">
+            <i class="fas fa-water icon"></i>
+            <h3>Flow 3</h3>
+            <p id="flow3Value">-</p>
+        </div>
+    </div>
+    {% endif %}
+    {% if user.show_cod %}
+    <div class="col-md-4 mb-3">
+        <div class="data-card">
+            <i class="fas fa-flask icon"></i>
+            <h3>COD</h3>
+            <p id="codValue">-</p>
+        </div>
+    </div>
+    {% endif %}
+    {% if user.show_bod %}
+    <div class="col-md-4 mb-3">
+        <div class="data-card">
+            <i class="fas fa-flask icon"></i>
+            <h3>BOD</h3>
+            <p id="bodValue">-</p>
+        </div>
+    </div>
+    {% endif %}
+    {% if user.show_tss %}
+    <div class="col-md-4 mb-3">
+        <div class="data-card">
+            <i class="fas fa-tint icon"></i>
+            <h3>TSS</h3>
+            <p id="tssValue">-</p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<div class="text-center">
+    <a href="{% url 'live_status' user.id %}" class="btn btn-primary"><i class="fas fa-signal"></i>View Live Status</a>
+    <a href="{% url 'download_page' user.id %}" class="btn btn-primary"><i class="fas fa-download"></i>Download Data</a>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    function formatValue(value, unit = '', nullText = '-', forceDecimals = false) {
+        if (value === null || value === undefined || value === '') {
+            return nullText;
+        }
+        const numValue = typeof value === 'string' ? parseFloat(value) : value;
+        if (forceDecimals || unit.includes('L/min') || unit.includes('mg/L')) {
+            return `${numValue.toFixed(2)} ${unit}`.trim();
+        }
+        return `${numValue} ${unit}`.trim();
+    }
+
+    function fetchLatestData() {
+        $.ajax({
+            url: `/api/water-quality/latest/?user_id={{ user.id }}`,
+            method: 'GET',
+            success: function(wqData) {
+                $.ajax({
+                    url: `/api/readings/latest/?user_id={{ user.id }}`,
+                    method: 'GET',
+                    success: function(flowData) {
+                        if (document.getElementById("phValue")) document.getElementById("phValue").innerText = formatValue(wqData.ph);
+                        if (document.getElementById("codValue")) document.getElementById("codValue").innerText = formatValue(wqData.cod, 'mg/L', '-', true);
+                        if (document.getElementById("bodValue")) document.getElementById("bodValue").innerText = formatValue(wqData.bod, 'mg/L', '-', true);
+                        if (document.getElementById("tssValue")) document.getElementById("tssValue").innerText = formatValue(wqData.tss, 'mg/L', '-', true);
+                        if (document.getElementById("flow1Value")) document.getElementById("flow1Value").innerText = formatValue(flowData.flow1?.value, 'L/min', '-', true);
+                        if (document.getElementById("flow2Value")) document.getElementById("flow2Value").innerText = formatValue(flowData.flow2?.value, 'L/min', '-', true);
+                        if (document.getElementById("flow3Value")) document.getElementById("flow3Value").innerText = formatValue(flowData.flow3?.value, 'L/min', '-', true);
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error fetching flow data:', error);
+                    }
+                });
+            },
+            error: function(xhr, status, error) {
+                console.error('Error fetching water quality data:', error);
+            }
+        });
+    }
+
+    fetchLatestData();
+    setInterval(fetchLatestData, 5000);
+});
+</script>
+{% endblock %}

@@ -1,0 +1,107 @@
+{% extends 'monitoring_app/base.html' %}
+
+{% block content %}
+<style>
+    .sliding-header {
+        text-align: center;
+        padding: 2rem;
+        background: linear-gradient(135deg, #007bff, #00c4b4);
+        color: white;
+        border-radius: 10px;
+        margin-bottom: 2rem;
+        animation: slideIn 1s ease-in-out;
+    }
+
+    .sliding-header h3 {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+        font-weight: 700;
+    }
+
+    .card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    .card-body {
+        padding: 2rem;
+        text-align: center;
+    }
+
+    .card-body p {
+        font-size: 1.2rem;
+        color: #333;
+        margin-bottom: 1.5rem;
+    }
+
+    .btn-primary {
+        background-color: #007bff;
+        border: none;
+        border-radius: 25px;
+        padding: 0.75rem 1.5rem;
+        font-size: 1rem;
+        font-weight: 500;
+        transition: background-color 0.3s ease;
+    }
+
+    .btn-primary:hover {
+        background-color: #0056b3;
+    }
+
+    .btn-primary i {
+        margin-right: 0.5rem;
+    }
+
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @media (max-width: 768px) {
+        .sliding-header h3 {
+            font-size: 1.8rem;
+        }
+
+        .card-body p {
+            font-size: 1rem;
+        }
+
+        .btn-primary {
+            padding: 0.6rem 1.2rem;
+            font-size: 0.9rem;
+        }
+    }
+</style>
+
+<!-- Include Font Awesome for icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<div class="container mt-5">
+    <div class="sliding-header">
+        <h3>Logged Out</h3>
+    </div>
+    <div class="row">
+        <div class="col-md-6 offset-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <p>You have been successfully logged out.</p>
+                    <a href="{% url 'login' %}" class="btn btn-primary"><i class="fas fa-sign-in-alt"></i>Log In Again</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
