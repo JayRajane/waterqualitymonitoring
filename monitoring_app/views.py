@@ -738,6 +738,7 @@ def submit_data(request):
     return JsonResponse({'success': False, 'error': 'Invalid request method'}, status=405)
 
     
+
 @login_required
 def preview_data(request, user_id):
     if request.method == 'POST':
@@ -747,9 +748,12 @@ def preview_data(request, user_id):
             start_date_str = body.get('start_date')
             end_date_str = body.get('end_date')
             time_interval = int(body.get('time_interval', 0))
-            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
-            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
-            if (end_date - start_date).days > 31:
+            
+            # Convert dates to datetime objects for range query
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d') + timedelta(days=1, microseconds=-1)
+            
+            if (end_date.date() - start_date.date()).days > 31:
                 return JsonResponse({"error": "Date range cannot exceed 31 days"}, status=400)
             
             # Get regular fields
@@ -827,22 +831,18 @@ def preview_data(request, user_id):
                 daily_flow_data = {}
                 for i in range(1, 11):
                     if f'daily_flow{i}' in daily_flow_fields:
-                        # Get the daily readings for this flow meter
                         daily_readings = Reading.objects.filter(
                             user=user,
                             parameter=f'flow{i}_daily',
-                            recorded_at__date__gte=start_date,
-                            recorded_at__date__lte=end_date
+                            recorded_at__range=[start_date, end_date]
                         ).order_by('recorded_at')
                         
                         for reading in daily_readings:
-                            # Use date only (midnight) as the key for daily totals
                             date_key = reading.recorded_at.replace(hour=0, minute=0, second=0, microsecond=0)
                             if date_key not in daily_flow_data:
                                 daily_flow_data[date_key] = {'timestamp': date_key.isoformat()}
                             daily_flow_data[date_key][f'daily_flow{i}'] = reading.value
                 
-                # Merge with existing data
                 for ts, data in daily_flow_data.items():
                     if ts in combined_data:
                         combined_data[ts].update(data)
@@ -853,7 +853,6 @@ def preview_data(request, user_id):
             if not combined_data_list:
                 return JsonResponse({"error": "No data available for the selected parameters and date range"}, status=400)
             
-            # Prepare the fields to return (combine regular fields and daily flow fields)
             all_fields = fields + daily_flow_fields
             
             return JsonResponse({
@@ -879,10 +878,12 @@ def download_data(request, user_id):
             end_date_str = body.get('end_date')
             file_format = body.get('format', 'excel')
             time_interval = int(body.get('time_interval', 0))
-            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
-            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
             
-            if (end_date - start_date).days > 31:
+            # Convert dates to datetime objects for range query
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d') + timedelta(days=1, microseconds=-1)
+            
+            if (end_date.date() - start_date.date()).days > 31:
                 return JsonResponse({"error": "Date range cannot exceed 31 days"}, status=400)
             
             # Get regular fields
@@ -907,8 +908,7 @@ def download_data(request, user_id):
             if fields:
                 wq_queryset = WaterQualityData.objects.filter(
                     user=user,
-                    timestamp__date__gte=start_date,
-                    timestamp__date__lte=end_date
+                    timestamp__range=[start_date, end_date]
                 ).order_by('timestamp').prefetch_related('user')
                 
                 flow_queryset = Reading.objects.filter(
@@ -917,8 +917,7 @@ def download_data(request, user_id):
                                   [f'flow{i}_total' for i in range(1, 11)] +
                                   [f'flow{i}_daily' for i in range(1, 11)] +
                                   [f'flow{i}_monthly' for i in range(1, 11)],
-                    recorded_at__date__gte=start_date,
-                    recorded_at__date__lte=end_date
+                    recorded_at__range=[start_date, end_date]
                 ).order_by('recorded_at').prefetch_related('user', 'machine')
                 
                 if time_interval > 0:
@@ -941,7 +940,6 @@ def download_data(request, user_id):
                 flow_data = list(flow_queryset)
                 
                 for item in wq_data:
-                    # Convert timestamp to IST
                     rounded_ts = item.timestamp.astimezone(ist_tz).replace(microsecond=0)
                     if rounded_ts not in combined_data:
                         combined_data[rounded_ts] = {'timestamp': rounded_ts.isoformat()}
@@ -955,7 +953,6 @@ def download_data(request, user_id):
                         combined_data[rounded_ts]['tss'] = item.tss
                 
                 for item in flow_data:
-                    # Convert recorded_at to IST
                     rounded_ts = item.recorded_at.astimezone(ist_tz).replace(microsecond=0)
                     if rounded_ts not in combined_data:
                         combined_data[rounded_ts] = {'timestamp': rounded_ts.isoformat()}
@@ -970,12 +967,10 @@ def download_data(request, user_id):
                         daily_readings = Reading.objects.filter(
                             user=user,
                             parameter=f'flow{i}_daily',
-                            recorded_at__date__gte=start_date,
-                            recorded_at__date__lte=end_date
+                            recorded_at__range=[start_date, end_date]
                         ).order_by('recorded_at')
                         
                         for reading in daily_readings:
-                            # Convert recorded_at to IST and use date only (midnight)
                             date_key = reading.recorded_at.astimezone(ist_tz).replace(hour=0, minute=0, second=0, microsecond=0)
                             if date_key not in daily_flow_data:
                                 daily_flow_data[date_key] = {'timestamp': date_key.isoformat()}
@@ -1034,7 +1029,7 @@ def download_data(request, user_id):
                 styles = getSampleStyleSheet()
                 elements.append(Paragraph("Water Quality Data Report", styles['Title']))
                 elements.append(Paragraph(f"User: {user.username}", styles['Normal']))
-                elements.append(Paragraph(f"Date Range: {start_date} to {end_date}", styles['Normal']))
+                elements.append(Paragraph(f"Date Range: {start_date.date()} to {end_date.date()}", styles['Normal']))
                 elements.append(Paragraph("", styles['Normal']))
                 
                 data = [df.columns.tolist()] + df.values.tolist()
