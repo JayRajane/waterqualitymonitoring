@@ -40,6 +40,106 @@ services:
       - web
     networks:
       - webnet
+    
+  redis:
+    image: redis:alpine
+    container_name: airflow_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - webnet
+  
+  airflow-init:
+    image: apache/airflow:2.9.1
+    container_name: airflow_init
+    depends_on:
+      - mysql
+      - redis
+    
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=CeleryExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=mysql+mysqldb://root:Bliss@Jarvis20@mysql:3306/airflow
+      - AIRFLOW__CELERY__RESULT_BACKEND=db+mysql://root:Bliss@Jarvis20@mysql:3306/airflow
+      - AIRFLOW__CELERY__BROKER_URL=redis://redis:6379/0
+      - AIRFLOW__CORE__FERNET_KEY=J5Mg-eBLUQwCcRPNHDDJPiqUlfBPr4yWECns0yVU0DY=
+      - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=True
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+    
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+    
+    entrypoint: >
+      bash -c "
+      airflow db init &&
+      airflow users create --username admin --firstname Admin --lastname User --role Admin --email admin@example.com --password admin
+      "
+    networks:
+      - webnet
+  airflow-webserver:
+    image: apache/airflow:2.9.1
+    container_name: airflow_webserver
+    restart: always
+    depends_on:
+      - airflow-init
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=CeleryExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=mysql+mysqldb://root:Bliss@Jarvis20@mysql:3306/airflow
+      - AIRFLOW__CELERY__RESULT_BACKEND=db+mysql://root:Bliss@Jarvis20@mysql:3306/airflow
+      - AIRFLOW__CELERY__BROKER_URL=redis://redis:6379/0
+      - AIRFLOW__CORE__FERNET_KEY=J5Mg-eBLUQwCcRPNHDDJPiqUlfBPr4yWECns0yVU0DY=
+      - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=True
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+    command: webserver
+    networks:
+      - webnet
+  
+  airflow-scheduler:
+    image: apache/airflow:2.9.1
+    container_name: airflow_scheduler
+    restart: always
+    depends_on:
+      - airflow-init
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=CeleryExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=mysql+mysqldb://root:Bliss@Jarvis20@mysql:3306/airflow
+      - AIRFLOW__CELERY__RESULT_BACKEND=db+mysql://root:Bliss@Jarvis20@mysql:3306/airflow
+      - AIRFLOW__CELERY__BROKER_URL=redis://redis:6379/0
+      - AIRFLOW__CORE__FERNET_KEY=J5Mg-eBLUQwCcRPNHDDJPiqUlfBPr4yWECns0yVU0DY=
+      - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=True
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+    command: scheduler
+    networks:
+      - webnet
+  
+  airflow-worker:
+    image: apache/airflow:2.9.1
+    container_name: airflow_worker
+    restart: always
+    depends_on:
+      - airflow-init
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=CeleryExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=mysql+mysqldb://root:Bliss@Jarvis20@mysql:3306/airflow
+      - AIRFLOW__CELERY__RESULT_BACKEND=db+mysql://root:Bliss@Jarvis20@mysql:3306/airflow
+      - AIRFLOW__CELERY__BROKER_URL=redis://redis:6379/0
+      - AIRFLOW__CORE__FERNET_KEY=J5Mg-eBLUQwCcRPNHDDJPiqUlfBPr4yWECns0yVU0DY=
+      - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=True
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+    command: celery worker
+    networks:
+      - webnet
 
 volumes:
   mysql_data:
