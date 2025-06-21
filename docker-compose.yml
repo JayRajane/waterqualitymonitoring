@@ -58,8 +58,8 @@ services:
     
     environment:
       - AIRFLOW__CORE__EXECUTOR=CeleryExecutor
-      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=mysql+mysqldb://blissadmin:Bliss%40Jarvis20@mysql:3306/airflow
-      - AIRFLOW__CELERY__RESULT_BACKEND=db+mysql://blissadmin:Bliss%40Jarvis20@mysql:3306/airflow
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=mysql+mysqldb://blissadmin:Bliss%40Jarvis20@172.17.0.1:3306/airflow
+      - AIRFLOW__CELERY__RESULT_BACKEND=db+mysql://blissadmin:Bliss%40Jarvis20@172.17.0.1:3306/airflow
       - AIRFLOW__CELERY__BROKER_URL=redis://redis:6379/0
       - AIRFLOW__CORE__FERNET_KEY=J5Mg-eBLUQwCcRPNHDDJPiqUlfBPr4yWECns0yVU0DY=
       - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=True
@@ -84,8 +84,8 @@ services:
       - airflow-init
     environment:
       - AIRFLOW__CORE__EXECUTOR=CeleryExecutor
-      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=mysql+mysqldb://blissadmin:Bliss%40Jarvis20@mysql:3306/airflow
-      - AIRFLOW__CELERY__RESULT_BACKEND=db+mysql://blissadmin:Bliss%40Jarvis20@mysql:3306/airflow
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=mysql+mysqldb://blissadmin:Bliss%40Jarvis20@172.17.0.1:3306/airflow
+      - AIRFLOW__CELERY__RESULT_BACKEND=db+mysql://blissadmin:Bliss%40Jarvis20@172.17.0.1:3306/airflow
       - AIRFLOW__CELERY__BROKER_URL=redis://redis:6379/0
       - AIRFLOW__CORE__FERNET_KEY=J5Mg-eBLUQwCcRPNHDDJPiqUlfBPr4yWECns0yVU0DY=
       - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=True
@@ -107,8 +107,8 @@ services:
       - airflow-init
     environment:
       - AIRFLOW__CORE__EXECUTOR=CeleryExecutor
-      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=mysql+mysqldb://blissadmin:Bliss%40Jarvis20@mysql:3306/airflow
-      - AIRFLOW__CELERY__RESULT_BACKEND=db+mysql://blissadmin:Bliss%40Jarvis20@mysql:3306/airflow
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=mysql+mysqldb://blissadmin:Bliss%40Jarvis20@172.17.0.1:3306/airflow
+      - AIRFLOW__CELERY__RESULT_BACKEND=db+mysql://blissadmin:Bliss%40Jarvis20@172.17.0.1:3306/airflow
       - AIRFLOW__CELERY__BROKER_URL=redis://redis:6379/0
       - AIRFLOW__CORE__FERNET_KEY=J5Mg-eBLUQwCcRPNHDDJPiqUlfBPr4yWECns0yVU0DY=
       - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=True
@@ -128,8 +128,8 @@ services:
       - airflow-init
     environment:
       - AIRFLOW__CORE__EXECUTOR=CeleryExecutor
-      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=mysql+mysqldb://blissadmin:Bliss%40Jarvis20@mysql:3306/airflow
-      - AIRFLOW__CELERY__RESULT_BACKEND=db+mysql://blissadmin:Bliss%40Jarvis20@mysql:3306/airflow
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=mysql+mysqldb://blissadmin:Bliss%40Jarvis20@172.17.0.1:3306/airflow
+      - AIRFLOW__CELERY__RESULT_BACKEND=db+mysql://blissadmin:Bliss%40Jarvis20@172.17.0.1:3306/airflow
       - AIRFLOW__CELERY__BROKER_URL=redis://redis:6379/0
       - AIRFLOW__CORE__FERNET_KEY=J5Mg-eBLUQwCcRPNHDDJPiqUlfBPr4yWECns0yVU0DY=
       - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=True
