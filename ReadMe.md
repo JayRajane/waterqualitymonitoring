@@ -45,6 +45,10 @@ To take any specific service up
 # Take down just Airflow services
 docker-compose stop airflow-webserver airflow-scheduler airflow-worker airflow-init redis
 
+docker-compose stop airflow-webserver airflow-scheduler airflow-worker redis
+docker-compose up -d airflow-webserver airflow-scheduler airflow-worker redis
+
+
 # (Re-run init if you changed DB-related configs)
 docker-compose run --rm airflow-init
 
