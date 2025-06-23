@@ -1,5 +1,6 @@
 #!/bin/bash
 
+cd airflow_package/airflow_db
 echo "🚀 Starting Airflow Scheduler..."
 airflow scheduler &
 

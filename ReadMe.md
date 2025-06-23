@@ -119,6 +119,7 @@ airflow users create \
 airflow scheduler & airflow webserver --port 8080
 pkill -f airflow
 To kill all serices using port
+**lsof -i :8080**
 lsof -i :8080
 kill -9 <PID>
 kill -9 $(lsof -ti :8080)
@@ -136,7 +137,7 @@ chmod +x start_airflow.sh
 # To run airflow
 ./start_airflow.sh
 
-airflow scheduler & airflow webserver --port 8080 &
+airflow scheduler & airflow webserver --port 8080 & airflow celery worker --concurrency 4 &
 For local restart to apply changes for .env
 docker-compose up -d --force-recreate airflow-webserver airflow-scheduler airflow-worker
 
