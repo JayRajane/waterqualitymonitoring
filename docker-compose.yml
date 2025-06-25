@@ -20,7 +20,7 @@ services:
     image: mysql:8.0.34
     container_name: wtp-mysql
     environment:
-      MYSQL_ROOT_PASSWORD: Bliss%40Jarvis20
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
     ports:
       - "3308:3306"  # avoid conflict with local MySQL
     volumes:

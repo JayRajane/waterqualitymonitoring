@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:alpine
+    networks: [airflow]
+
+  airflow-webserver:
+    image: apache/airflow:2.9.1
+    depends_on: [redis]
+    ports: ["8080:8080"]
+    env_file: .env
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+    networks: [airflow]
+
+  airflow-scheduler:
+    image: apache/airflow:2.9.1
+    depends_on: [airflow-webserver]
+    env_file: .env
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+    networks: [airflow]
+
+  airflow-worker:
+    image: apache/airflow:2.9.1
+    depends_on: [redis, airflow-scheduler]
+    env_file: .env
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+    networks: [airflow]
+
+  airflow-init:
+    image: apache/airflow:2.9.1
+    env_file: .env
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+    entrypoint: >
+      bash -c "airflow db init &&
+               airflow users create --username admin --password admin --firstname Air --lastname Flow --role Admin --email admin@example.com"
+    networks: [airflow]
+
+networks:
+  airflow:
