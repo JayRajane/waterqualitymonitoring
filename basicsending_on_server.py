@@ -39,7 +39,7 @@ def send_data(ph_value):
     """Send pH data to server"""
     try:
         data = {'user_id': USER_ID, 'ph': ph_value}
-        response = requests.post('http://192.168.1.102:8000/submit-data/', json=data, timeout=10)
+        response = requests.post('http://127.0.0.1:8000/submit-data/', json=data, timeout=10)
         if response.status_code == 200:
             result = response.json()
             if result.get('success'):
