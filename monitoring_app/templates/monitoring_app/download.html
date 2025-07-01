@@ -313,11 +313,11 @@
                     <div class="col-md-4">
                         <div class="form-check">
                             <input class="form-check-input parameter-checkbox" type="checkbox" name="flow2" id="flow2">
-                            <label class="form-check-label" for="flow2"><i class="fas fa-water icon"></i>Flow 2 (L/min)</label>
+                            <label class="form-check-label" for="flow2"><i class="fas fa-water icon"></i>Flow 2 (Kg/h)</label>
                         </div>
                         <div class="form-check">
                             <input class="form-check-input parameter-checkbox" type="checkbox" name="flow2_total" id="flow2_total">
-                            <label class="form-check-label" for="flow2_total"><i class="fas fa-water icon"></i>Flow 2 Total (L)</label>
+                            <label class="form-check-label" for="flow2_total"><i class="fas fa-water icon"></i>Flow 2 Total (Kg)</label>
                         </div>
                     </div>
                     {% endif %}
@@ -325,11 +325,11 @@
                     <div class="col-md-4">
                         <div class="form-check">
                             <input class="form-check-input parameter-checkbox" type="checkbox" name="flow3" id="flow3">
-                            <label class="form-check-label" for="flow3"><i class="fas fa-water icon"></i>Flow 3 (L/min)</label>
+                            <label class="form-check-label" for="flow3"><i class="fas fa-water icon"></i>Flow 3 (Kg/h)</label>
                         </div>
                         <div class="form-check">
                             <input class="form-check-input parameter-checkbox" type="checkbox" name="flow3_total" id="flow3_total">
-                            <label class="form-check-label" for="flow3_total"><i class="fas fa-water icon"></i>Flow 3 Total (L)</label>
+                            <label class="form-check-label" for="flow3_total"><i class="fas fa-water icon"></i>Flow 3 Total (Kg)</label>
                         </div>
                     </div>
                     {% endif %}
@@ -440,7 +440,7 @@
                     <div class="col-md-4">
                         <div class="form-check">
                             <input class="form-check-input daily-total-checkbox" type="checkbox" name="daily_flow2" id="daily_flow2">
-                            <label class="form-check-label" for="daily_flow2"><i class="fas fa-water icon"></i>Flow 2 Daily Total (L)</label>
+                            <label class="form-check-label" for="daily_flow2"><i class="fas fa-water icon"></i>Flow 2 Daily Total (Kg)</label>
                         </div>
                     </div>
                     {% endif %}
@@ -448,7 +448,7 @@
                     <div class="col-md-4">
                         <div class="form-check">
                             <input class="form-check-input daily-total-checkbox" type="checkbox" name="daily_flow3" id="daily_flow3">
-                            <label class="form-check-label" for="daily_flow3"><i class="fas fa-water icon"></i>Flow 3 Daily Total (L)</label>
+                            <label class="form-check-label" for="daily_flow3"><i class="fas fa-water icon"></i>Flow 3 Daily Total (Kg)</label>
                         </div>
                     </div>
                     {% endif %}
@@ -610,9 +610,9 @@ $(document).ready(function() {
                 fields.forEach(field => {
                     let unit = '';
                     if (field.startsWith('flow') && !['total', 'daily', 'monthly'].some(s => field.includes(s))) {
-                        unit = ' (L/min)';
+                        unit = ' (Kg/h)';
                     } else if (field.startsWith('flow') || field.startsWith('daily_flow')) {
-                        unit = ' (L)';
+                        unit = ' (Kg)';
                     } else if (['cod', 'bod', 'tss'].includes(field)) {
                         unit = ' (mg/L)';
                     }

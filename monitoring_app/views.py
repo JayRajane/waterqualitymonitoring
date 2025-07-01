@@ -581,6 +581,7 @@ def data_entry(request):
     return redirect('dashboard')
 
 
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 @csrf_exempt
@@ -661,9 +662,28 @@ def submit_data(request):
                     if total_value is not None and total_value < 0:
                         return JsonResponse({'success': False, 'error': f'{total_param} cannot be negative'}, status=400)
 
-                    # Process flow reading if provided
-                    if flow_value is not None:
-                        # Save the instantaneous flow reading
+                    # Get the latest total flow reading
+                    latest_total = Reading.objects.filter(
+                        user=user,
+                        machine=machine,
+                        parameter=total_param
+                    ).order_by('-recorded_at').first()
+
+                    # Initialize variables
+                    new_total = None
+                    increment = None
+
+                    # Case 1: Both flow and total provided
+                    if flow_value is not None and total_value is not None:
+                        # Use total_value for new_total
+                        new_total = total_value
+                        # Calculate increment based on difference from previous total
+                        increment = total_value - (latest_total.value if latest_total else 0)
+                        if increment < 0:
+                            logger.warning(f"Negative increment detected for {total_param}: {increment}")
+                            increment = 0  # Prevent negative increments
+                        
+                        # Save instantaneous flow reading
                         Reading.objects.create(
                             user=user,
                             machine=machine,
@@ -672,53 +692,31 @@ def submit_data(request):
                         )
                         logger.info(f"Saved {flow_param} reading with value {flow_value} for user_id {user_id}")
 
-                        # Calculate and save daily flow (sum of all today's flow readings)
-                        daily_sum = Reading.objects.filter(
-                            user=user,
-                            machine=machine,
-                            parameter=flow_param,
-                            recorded_at__date=today
-                        ).aggregate(total=Sum('value'))['total'] or 0
+                    # Case 2: Only flow provided
+                    elif flow_value is not None:
+                        # Calculate new total by adding flow to previous total
+                        new_total = (latest_total.value if latest_total else 0) + flow_value
+                        increment = flow_value
                         
+                        # Save instantaneous flow reading
                         Reading.objects.create(
                             user=user,
                             machine=machine,
-                            parameter=daily_param,
-                            value=daily_sum
-                        )
-                        logger.info(f"Saved {daily_param} reading with value {daily_sum} for user_id {user_id}")
-
-                        # Calculate and save monthly flow (sum of all this month's flow readings)
-                        monthly_sum = Reading.objects.filter(
-                            user=user,
-                            machine=machine,
                             parameter=flow_param,
-                            recorded_at__date__gte=month_start
-                        ).aggregate(total=Sum('value'))['total'] or 0
-                        
-                        Reading.objects.create(
-                            user=user,
-                            machine=machine,
-                            parameter=monthly_param,
-                            value=monthly_sum
+                            value=flow_value
                         )
-                        logger.info(f"Saved {monthly_param} reading with value {monthly_sum} for user_id {user_id}")
+                        logger.info(f"Saved {flow_param} reading with value {flow_value} for user_id {user_id}")
 
-                    # Process total flow (can be provided manually or calculated)
-                    if flow_value is not None or total_value is not None:
-                        latest_total = Reading.objects.filter(
-                            user=user,
-                            machine=machine,
-                            parameter=total_param
-                        ).order_by('-recorded_at').first()
-                        
-                        if total_value is not None:
-                            # Use manual total value if provided
-                            new_total = total_value
-                        else:
-                            # Calculate new total from previous total + current flow
-                            new_total = (latest_total.value if latest_total else 0) + flow_value
-                        
+                    # Case 3: Only total provided
+                    elif total_value is not None:
+                        new_total = total_value
+                        increment = total_value - (latest_total.value if latest_total else 0)
+                        if increment < 0:
+                            logger.warning(f"Negative increment detected for {total_param}: {increment}")
+                            increment = 0  # Prevent negative increments
+
+                    # Save total flow reading if new_total is calculated
+                    if new_total is not None:
                         Reading.objects.create(
                             user=user,
                             machine=machine,
@@ -726,6 +724,42 @@ def submit_data(request):
                             value=new_total
                         )
                         logger.info(f"Saved {total_param} reading with value {new_total} for user_id {user_id}")
+
+                    # Calculate and save daily and monthly flows based on increment
+                    if increment is not None:
+                        # Calculate daily flow (sum of increments for today)
+                        daily_sum = Reading.objects.filter(
+                            user=user,
+                            machine=machine,
+                            parameter=total_param,
+                            recorded_at__date=today
+                        ).order_by('-recorded_at').first()
+                        daily_increment = increment if daily_sum is None else increment + (daily_sum.value - (latest_total.value if latest_total else 0))
+
+                        Reading.objects.create(
+                            user=user,
+                            machine=machine,
+                            parameter=daily_param,
+                            value=daily_increment
+                        )
+                        logger.info(f"Saved {daily_param} reading with value {daily_increment} for user_id {user_id}")
+
+                        # Calculate monthly flow (sum of increments for this month)
+                        monthly_sum = Reading.objects.filter(
+                            user=user,
+                            machine=machine,
+                            parameter=total_param,
+                            recorded_at__date__gte=month_start
+                        ).order_by('-recorded_at').first()
+                        monthly_increment = increment if monthly_sum is None else increment + (monthly_sum.value - (latest_total.value if latest_total else 0))
+
+                        Reading.objects.create(
+                            user=user,
+                            machine=machine,
+                            parameter=monthly_param,
+                            value=monthly_increment
+                        )
+                        logger.info(f"Saved {monthly_param} reading with value {monthly_increment} for user_id {user_id}")
 
             return JsonResponse({'success': True})
         except ValueError as e:
@@ -736,8 +770,7 @@ def submit_data(request):
             return JsonResponse({'success': False, 'error': str(e)}, status=500)
     logger.error("Invalid request method in submit_data")
     return JsonResponse({'success': False, 'error': 'Invalid request method'}, status=405)
-
-    
+   
 
 @login_required
 def preview_data(request, user_id):
