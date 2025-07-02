@@ -1,44 +1,34 @@
 #!/usr/bin/env python3
 import requests
-from pymodbus.client import ModbusSerialClient
 import time
 import json
+import random
 
 # Configuration
 USER_ID = 4
-PH_DEVICE_ID = 1
 INTERVAL = 5  # seconds between readings
+FLOW4_TOTAL = 346788  # starting value for flow4_total
 
-# Setup pH sensor connection
-ph_client = ModbusSerialClient(
-    port='/dev/ttyUSB0',
-    baudrate=9600,
-    timeout=5,
-    parity='N',
-    stopbits=1,
-    bytesize=8
-)
+def generate_flow4_data():
+    """Generate random flow4 value and update flow4_total incrementally"""
+    global FLOW4_TOTAL
+    flow4 = round(random.uniform(0.5, 5.0), 2)  # Random flow4 value between 0.5 and 5.0
+    
+    # Increment flow4_total by a random amount (1 to 10) to ensure it always increases
+    increment = random.randint(1, 10)
+    FLOW4_TOTAL += increment
+    
+    print(f"Flow4: {flow4}, Flow4 Total: {FLOW4_TOTAL} (increased by {increment})")
+    return flow4, FLOW4_TOTAL
 
-def read_ph():
-    """Read pH value from sensor"""
+def send_data(flow4, flow4_total):
+    """Send flow data to server"""
     try:
-        response = ph_client.read_holding_registers(address=0, count=1, slave=PH_DEVICE_ID)
-        if not response.isError():
-            raw_value = response.registers[0]
-            ph_value = round(raw_value / 100, 2)
-            print(f"pH Reading: {ph_value}")
-            return ph_value
-        else:
-            print("Error reading pH sensor")
-            return None
-    except Exception as e:
-        print(f"pH read error: {e}")
-        return None
-
-def send_data(ph_value):
-    """Send pH data to server"""
-    try:
-        data = {'user_id': USER_ID, 'ph': ph_value}
+        data = {
+            'user_id': USER_ID,
+            'flow4': flow4,
+            'flow4_total': flow4_total
+        }
         response = requests.post('http://127.0.0.1:8000/submit-data/', json=data, timeout=10)
         if response.status_code == 200:
             result = response.json()
@@ -52,24 +42,16 @@ def send_data(ph_value):
         return False
 
 def main():
-    # Connect to pH sensor
-    print("Connecting to pH sensor...")
-    if not ph_client.connect():
-        print("Failed to connect to pH sensor!")
-        return
-    
-    print("pH sensor connected. Starting readings...")
+    print("Starting flow4 data logger...")
+    print(f"Initial Flow4 Total: {FLOW4_TOTAL}")
     
     try:
         while True:
-            # Read pH value
-            ph_value = read_ph()
+            # Generate flow4 data
+            flow4, flow4_total = generate_flow4_data()
             
-            # Send data if valid
-            if ph_value is not None and 0 <= ph_value <= 14:
-                send_data(ph_value)
-            else:
-                print("Invalid pH reading, skipping...")
+            # Send data
+            send_data(flow4, flow4_total)
             
             # Wait before next reading
             print(f"Waiting {INTERVAL} seconds...\n")
@@ -78,8 +60,7 @@ def main():
     except KeyboardInterrupt:
         print("\nStopping...")
     finally:
-        ph_client.close()
-        print("pH sensor disconnected.")
+        print("Flow4 data logger stopped.")
 
 if __name__ == "__main__":
     main()
