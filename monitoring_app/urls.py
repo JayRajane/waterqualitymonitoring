@@ -29,19 +29,4 @@ urlpatterns = [
     path('add-data/', views.add_data, name='add_data'),
     path('data-entry/', views.data_entry, name='data_entry'),
     path('submit-data/', views.submit_data, name='submit_data'),
-    path('water-analyzer/', views.water_analyzer_dashboard, name='water_analyzer_dashboard'),
-    path('calibration-status/', views.calibration_status, name='calibration_status'),
-    path('reset-calibration/', views.reset_calibration, name='reset_calibration'),
-    path('submit-data/', views.submit_data, name='submit_data'),
-    path('water-analyzer/', views.water_analyzer_dashboard, name='water_analyzer_dashboard'),
-    path('api/external-data/', views.get_external_data, name='get_external_data'),
-    path('analyzer/', views.water_analyzer_dashboard, name='water_analyzer_dashboard'),
-    path('analyzer/<int:user_id>/', views.water_analyzer_dashboard, name='water_analyzer_dashboard_with_user'),
-    
-
-    path('api/external-data/', views.get_external_data, name='get_external_data'),
-    path('api/users/', views.get_users_list, name='get_users_list'),
-    path('submit-data/', views.submit_data, name='submit_data'),
-    path('calibration-status/', views.calibration_status, name='calibration_status'),
-    path('reset-calibration/', views.reset_calibration, name='reset_calibration'),
 ]

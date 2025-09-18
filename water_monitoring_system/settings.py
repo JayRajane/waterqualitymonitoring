@@ -32,7 +32,7 @@ SECRET_KEY = 'django-insecure-your-secret-key-here'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['192.168.1.103','localhost','127.0.0.1']
+ALLOWED_HOSTS = ['192.168.1.101','localhost','127.0.0.1']
 
 # Application definition
 INSTALLED_APPS = [
@@ -54,29 +54,28 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',  # Removed duplicate
-    # Re-enabled to satisfy admin.E408 and allow request.user in admin templates
+    'django.middleware.csrf.CsrfViewMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    # Removed 'water_monitoring_system.middleware.RequireLoginMiddleware' to prevent global login enforcement
+    'water_monitoring_system.middleware.RequireLoginMiddleware', # Add this line
     'corsheaders.middleware.CorsMiddleware',
+
+
 ]
 
 SESSION_COOKIE_SECURE = False  # Set to True only if using HTTPS
 CSRF_COOKIE_SECURE = False  # Set to True only if using HTTPS
 
-# Set to None to prevent redirects to login page for unauthenticated users
-# (Overrides any conflicting settings below)
+# Add to settings.py
 LOGIN_URL = '/accounts/login/'
-
-# Comment out or remove conflicting login/logout redirects to avoid issues
-# LOGIN_REDIRECT_URL = '/'
-# LOGOUT_REDIRECT_URL = '/accounts/login/'
-# LOGOUT_REDIRECT_URL = 'login'  # Redirect to the login page after logout
+LOGIN_REDIRECT_URL = '/'
+LOGOUT_REDIRECT_URL = '/accounts/login/'
+LOGOUT_REDIRECT_URL = 'login'  # Redirect to the login page after logout
 
 # In settings.py
-# LOGOUT_GET_ALLOWED = True  
+LOGOUT_GET_ALLOWED = True  
 # Session timeout (30 minutes = 1800 seconds)
 SESSION_COOKIE_AGE = 1800
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
@@ -95,7 +94,6 @@ TEMPLATES = [
             'context_processors': [
                 'django.template.context_processors.debug',
                 'django.template.context_processors.request',
-                # Re-enabled to satisfy admin.E402 and provide auth context in admin templates
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
             ],
@@ -158,11 +156,10 @@ DEFAULT_FROM_EMAIL = 'your@email.com'
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# REST Framework settings - Override defaults to AllowAny for unauthenticated API access
-# (This ensures your API views like /api/water-quality/latest/ don't require login)
+# REST Framework settings
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.AllowAny',  # Changed from IsAuthenticated to AllowAny
+        'rest_framework.permissions.IsAuthenticated',
     ],
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication',
@@ -170,8 +167,6 @@ REST_FRAMEWORK = {
     ],
 }
 
-# Ensure CSRF is enabled for POST requests
-CSRF_COOKIE_SECURE = False  # Set to True in production with HTTPS
-SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
-
-# No need to repeat LOGIN_URL = None here, as it's set above
+# Login/Logout URLs
+#LOGIN_REDIRECT_URL = '/'
+#LOGOUT_REDIRECT_URL = '/'
