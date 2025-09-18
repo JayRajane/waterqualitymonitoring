@@ -322,102 +322,90 @@
                 });
         }
 
-        // Check calibration status and update UI
-        function checkCalibrationStatus() {
-            fetch('/calibration-status/')
-                .then(response => response.json())
-                .then(data => {
-                    isCalibrationActive = data.calibration_active;
-                    const statusElement = document.getElementById('calibration-status');
-                    statusElement.textContent = data.calibration_active ? 'Calibration Mode Active' : 'Normal Mode';
-                    statusElement.className = data.calibration_active ? 'status-calibration' : 'status-normal';
-                })
-                .catch(error => {
-                    console.error('Error checking calibration status:', error);
-                });
-        }
-
-        // Submit calibration data
-        function submitCalibration() {
-            if (isSubmitting) return;
-            
-            isSubmitting = true;
-            const submitButton = document.getElementById('submit-button');
-            submitButton.disabled = true;
-            submitButton.textContent = 'Submitting...';
-            
-            const form = document.getElementById('calibration-form');
-            const formData = new FormData(form);
-            const calibrationData = {};
-            
-            // Add user ID 25 to calibration data
-            calibrationData.user_id = currentUserId;
-            
-            // Validate and collect form data
-            let hasErrors = false;
-            let hasData = false;
-            
-            formData.forEach((value, key) => {
-                if (value !== '' && key !== 'csrfmiddlewaretoken' && key !== 'user_id') {
-                    hasData = true;
-                    const validation = validateInput(key, value);
-                    if (validation !== true) {
-                        showMessage(validation, 'error');
-                        hasErrors = true;
-                        return;
-                    }
-                    calibrationData[key] = parseFloat(value) || null;
-                }
-            });
-            
-            if (hasErrors) {
-                isSubmitting = false;
-                submitButton.disabled = false;
-                submitButton.textContent = 'Submit Calibration';
+// Submit calibration data
+function submitCalibration() {
+    if (isSubmitting) return;
+    
+    isSubmitting = true;
+    const submitButton = document.getElementById('submit-button');
+    submitButton.disabled = true;
+    submitButton.textContent = 'Submitting...';
+    
+    const form = document.getElementById('calibration-form');
+    const formData = new FormData(form);
+    const calibrationData = {};
+    
+    // Add user ID 25 to calibration data
+    calibrationData.user_id = currentUserId;
+    
+    // Validate and collect form data
+    let hasErrors = false;
+    let hasData = false;
+    
+    formData.forEach((value, key) => {
+        if (value !== '' && key !== 'csrfmiddlewaretoken' && key !== 'user_id') {
+            hasData = true;
+            const validation = validateInput(key, value);
+            if (validation !== true) {
+                showMessage(validation, 'error');
+                hasErrors = true;
                 return;
             }
-            
-            if (!hasData) {
-                showMessage('Please enter at least one calibration value', 'error');
-                isSubmitting = false;
-                submitButton.disabled = false;
-                submitButton.textContent = 'Submit Calibration';
-                return;
-            }
-
-            // Submit to Django backend
-            fetch('/submit-data/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCsrfToken()
-                },
-                body: JSON.stringify(calibrationData)
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    showMessage(`Calibration data submitted successfully for User 25! System is now in calibration mode.`, 'success');
-                    document.getElementById('calibration-form').reset();
-                    document.getElementById('hidden-user-id').value = '25'; // Reset hidden field
-                    checkCalibrationStatus();
-                    // Update dashboard immediately with calibrated values
-                    setTimeout(fetchData, 500);
-                } else {
-                    showMessage(`Error: ${data.error}`, 'error');
-                }
-            })
-            .catch(error => {
-                console.error('Error submitting calibration:', error);
-                showMessage('Error submitting calibration data', 'error');
-            })
-            .finally(() => {
-                isSubmitting = false;
-                submitButton.disabled = false;
-                submitButton.textContent = 'Submit Calibration';
-            });
+            calibrationData[key] = parseFloat(value) || null;
         }
+    });
+    
+    // Debug: Log what we're about to send
+    console.log('Calibration data to send:', calibrationData);
+    
+    if (hasErrors) {
+        isSubmitting = false;
+        submitButton.disabled = false;
+        submitButton.textContent = 'Submit Calibration';
+        return;
+    }
+    
+    if (!hasData) {
+        showMessage('Please enter at least one calibration value', 'error');
+        isSubmitting = false;
+        submitButton.disabled = false;
+        submitButton.textContent = 'Submit Calibration';
+        return;
+    }
 
+    // Submit to Django backend
+    fetch('/submit-data/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken()
+        },
+        body: JSON.stringify(calibrationData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Response from server:', data); // Debug log
+        if (data.success) {
+            showMessage(`Calibration data submitted successfully for User 25! System is now in calibration mode.`, 'success');
+            document.getElementById('calibration-form').reset();
+            document.getElementById('hidden-user-id').value = '25'; // Reset hidden field
+            checkCalibrationStatus();
+            // Update dashboard immediately with calibrated values
+            setTimeout(fetchData, 500);
+        } else {
+            showMessage(`Error: ${data.error}`, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error submitting calibration:', error);
+        showMessage('Error submitting calibration data', 'error');
+    })
+    .finally(() => {
+        isSubmitting = false;
+        submitButton.disabled = false;
+        submitButton.textContent = 'Submit Calibration';
+    });
+}
         // Reset calibration
         function resetCalibration() {
             if (isSubmitting) return;

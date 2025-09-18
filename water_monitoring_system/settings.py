@@ -68,7 +68,7 @@ CSRF_COOKIE_SECURE = False  # Set to True only if using HTTPS
 
 # Set to None to prevent redirects to login page for unauthenticated users
 # (Overrides any conflicting settings below)
-LOGIN_URL = None
+LOGIN_URL = '/accounts/login/'
 
 # Comment out or remove conflicting login/logout redirects to avoid issues
 # LOGIN_REDIRECT_URL = '/'

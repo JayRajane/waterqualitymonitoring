@@ -1052,6 +1052,9 @@ def submit_data(request):
             daily_flow = parse_float(data.get('daily_flow'))
             flow_total = parse_float(data.get('flow_total'))
 
+            # Debug logging to see what we received
+            logger.info(f"Received calibration data: ph={ph}, cod={cod}, bod={bod}, tss={tss}, flow_rate={flow_rate}, daily_flow={daily_flow}, flow_total={flow_total}")
+
             # Validation
             if ph is not None and (ph < 0 or ph > 14):
                 return JsonResponse({'success': False, 'error': 'pH must be between 0 and 14'}, status=400)
@@ -1071,18 +1074,29 @@ def submit_data(request):
             # Store calibration data with user_id 25
             calibration_data = {
                 'user_id': 25,  # Hardcoded to 25
-                'ph': ph,
-                'cod': cod,
-                'bod': bod,
-                'tss': tss,
-                'flow_rate': flow_rate,
-                'daily_flow': daily_flow,
-                'flow_total': flow_total,   
                 'record': True
             }
             
-            # Remove None values
-            calibration_data = {k: v for k, v in calibration_data.items() if v is not None}
+            # Only include non-null values
+            if ph is not None:
+                calibration_data['ph'] = ph
+            if cod is not None:
+                calibration_data['cod'] = cod
+            if bod is not None:
+                calibration_data['bod'] = bod
+            if tss is not None:
+                calibration_data['tss'] = tss
+            if flow_rate is not None:
+                calibration_data['flow_rate'] = flow_rate
+            if daily_flow is not None:
+                calibration_data['daily_flow'] = daily_flow
+            if flow_total is not None:
+                calibration_data['flow_total'] = flow_total
+            
+            # Always include spm field (as shown in your sample)
+            calibration_data['spm'] = 0
+            
+            logger.info(f"Processed calibration data: {calibration_data}")
             
             # Update calibration state
             state = load_calibration_state()
@@ -1121,11 +1135,6 @@ def send_calibrated_data(calibration_data):
             # Prepare data for external API submission
             api_data = calibration_data.copy()
             
-            # DO NOT convert ph to ph_value - the API expects "ph"
-            # Remove this line that was causing the issue:
-            # if 'ph' in api_data:
-            #     api_data['ph_value'] = api_data.pop('ph')
-            
             # Ensure user_id is always 25
             api_data['user_id'] = 25
             
@@ -1135,6 +1144,21 @@ def send_calibrated_data(calibration_data):
             
             # Ensure record field is present
             api_data['record'] = True
+            
+            # Handle field name mapping if needed
+            # The API expects these exact field names based on your GET response
+            if 'flow_rate' not in api_data and 'flow' in api_data:
+                api_data['flow_rate'] = api_data.pop('flow')
+            
+            # Ensure daily_flow is properly included
+            if 'daily_flow' in api_data:
+                # Make sure daily_flow value is properly formatted
+                daily_flow_value = api_data['daily_flow']
+                if daily_flow_value is not None:
+                    api_data['daily_flow'] = float(daily_flow_value)
+            
+            # Debug logging to see what we're sending
+            logger.info(f"Sending calibration data to API: {api_data}")
             
             headers = {'Content-Type': 'application/json'}
             response = requests.post(submit_url, json=api_data, headers=headers, timeout=10)
