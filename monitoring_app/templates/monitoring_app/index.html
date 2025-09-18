@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Water Analyzer Dashboard - User 25</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 1200px;
+            margin: auto;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .dashboard, .calibration {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            flex: 1;
+            min-width: 300px;
+        }
+        .dashboard h2, .calibration h2 {
+            margin-top: 0;
+        }
+        .user-info {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #e3f2fd;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.1em;
+            color: #1976d2;
+        }
+        .parameter {
+            margin: 10px 0;
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+        .parameter label {
+            font-weight: bold;
+            display: block;
+        }
+        .parameter span {
+            font-size: 1.2em;
+        }
+        .form-group {
+            margin: 10px 0;
+        }
+        .form-group label {
+            display: block;
+            font-weight: bold;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+        }
+        button[type="button"] {
+            background-color: #6c757d;
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        #calibration-status {
+            margin: 10px 0;
+            font-weight: bold;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        #last-updated {
+            font-style: italic;
+            margin-top: 10px;
+        }
+        .status-normal {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status-calibration {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .loading {
+            opacity: 0.6;
+        }
+        .error-message {
+            color: red;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+        .success-message {
+            color: green;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+        .flow-group {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 15px;
+            background-color: #f9f9f9;
+        }
+        .flow-group h4 {
+            margin-top: 0;
+            color: #333;
+        }
+        .daily-flow-info {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 4px;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- User Info Display -->
+        <div class="user-info">
+            Active User: Ion Exchange
+        </div>
+
+        <div class="dashboard">
+            <h2>Water Analyzer Dashboard</h2>
+            <div class="parameter">
+                <label>COD</label>
+                <span id="cod-value">00.00 mg/l</span>
+            </div>
+            <div class="parameter">
+                <label>BOD</label>
+                <span id="bod-value">00.00 mg/l</span>
+            </div>
+            <div class="parameter">
+                <label>TSS</label>
+                <span id="tss-value">00.00 mg/l</span>
+            </div>
+            <div class="parameter">
+                <label>pH</label>
+                <span id="ph-value">00.00</span>
+            </div>
+            <div class="parameter">
+                <label>Flow Rate</label>
+                <span id="flow-value">00.00 L/min</span>
+            </div>
+            <div class="parameter hidden">
+                <label>Total Flow</label>
+                <span id="total-flow-value">00.00 L</span>
+            </div>
+            <div class="parameter">
+                <label>Daily Flow</label>
+                <span id="daily-flow-value">00.00 L</span>
+            </div>
+            <div id="last-updated">Last updated: --</div>
+            <button id="reset-button">Reset Calibration</button>
+        </div>
+
+        <div class="calibration">
+            <h2>Calibration Settings</h2>
+            <div id="calibration-status" class="status-normal">Normal Mode</div>
+            <div id="message-area"></div>
+            <form id="calibration-form">
+                <input type="hidden" name="user_id" id="hidden-user-id" value="25">
+                <div class="form-group">
+                    <label for="cod-input">COD (mg/l)</label>
+                    <input type="number" id="cod-input" name="cod" step="0.01" placeholder="Last fetched: 00.00 mg/l">
+                </div>
+                <div class="form-group">
+                    <label for="bod-input">BOD (mg/l)</label>
+                    <input type="number" id="bod-input" name="bod" step="0.01" placeholder="Last fetched: 00.00 mg/l">
+                </div>
+                <div class="form-group">
+                    <label for="tss-input">TSS (mg/l)</label>
+                    <input type="number" id="tss-input" name="tss" step="0.01" placeholder="Last fetched: 00.00 mg/l">
+                </div>
+                <div class="form-group">
+                    <label for="ph-input">pH</label>
+                    <input type="number" id="ph-input" name="ph" step="0.01" min="0" max="14" placeholder="Last fetched: 00.00">
+                </div>
+                <div class="form-group">
+                    <label for="flow-input">Flow Rate (L/min)</label>
+                    <input type="number" id="flow-input" name="flow_rate" step="0.01" placeholder="Last fetched: 00.00 L/min">
+                </div>
+                <div class="form-group hidden">
+                    <label for="total-flow-input">Total Flow (L)</label>
+                    <input type="number" id="total-flow-input" name="flow_total" step="0.01" placeholder="Last fetched: 00.00 L">
+                </div>
+                <div class="form-group">
+                    <label for="daily-flow-input">Daily Flow (L)</label>
+                    <input type="number" id="daily-flow-input" name="daily_flow" step="0.01" placeholder="Last fetched: 00.00 L">
+                </div>
+                <button type="button" id="clear-button">Clear</button>
+                <button type="submit" id="submit-button">Submit Calibration</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let isCalibrationActive = false;
+        let isSubmitting = false;
+        let midnightTotalFlow = 0;
+        let currentTotalFlow = 0;
+        let currentDailyFlow = 0;
+        const currentUserId = '25'; // Fixed user ID
+
+        // Get CSRF token for POST requests (if available)
+        function getCsrfToken() {
+            const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+            return csrfInput ? csrfInput.value : '';
+        }
+
+        // Show message to user
+        function showMessage(message, type = 'info') {
+            const messageArea = document.getElementById('message-area');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = type === 'error' ? 'error-message' : 'success-message';
+            messageDiv.textContent = message;
+            messageArea.innerHTML = '';
+            messageArea.appendChild(messageDiv);
+            
+            // Auto-hide message after 5 seconds
+            setTimeout(() => {
+                if (messageArea.contains(messageDiv)) {
+                    messageArea.removeChild(messageDiv);
+                }
+            }, 5000);
+        }
+
+        // Update daily flow calculation display
+        function updateDailyFlowCalculation() {
+            const dailyCalculated = currentTotalFlow - midnightTotalFlow;
+            document.getElementById('daily-calculation').textContent = 
+                `Calculation: ${currentTotalFlow} - ${midnightTotalFlow} = ${dailyCalculated.toFixed(2)}`;
+        }
+
+        // Validate form input
+        function validateInput(name, value) {
+            if (value === null || value === '') return true;
+            
+            const numValue = parseFloat(value);
+            if (isNaN(numValue)) {
+                return `${name} must be a valid number`;
+            }
+            
+            if (numValue < 0) {
+                return `${name} cannot be negative`;
+            }
+            
+            if (name === 'ph' && (numValue < 0 || numValue > 14)) {
+                return 'pH must be between 0 and 14';
+            }
+            
+            return true;
+        }
+
+        // Calculate midnight total flow (approximate - would need actual midnight data from API)
+        function calculateMidnightTotalFlow(currentTotal, dailyFlow) {
+            // This is an approximation. In a real system, you'd fetch the actual midnight total flow
+            return currentTotal - dailyFlow;
+        }
+
+        // Fetch data and update dashboard
+
+// Enhanced fetch data function to show current calibration values in placeholders
+function fetchData() {
+    if (isSubmitting) return;
+
+    // Check calibration status first
+    fetch('/calibration-status/')
+        .then(response => response.json())
+        .then(calibrationStatus => {
+            isCalibrationActive = calibrationStatus.calibration_active;
+            
+            if (calibrationStatus.calibration_active && calibrationStatus.calibration_data) {
+                // Show calibrated values on dashboard
+                const calData = calibrationStatus.calibration_data;
+                
+                document.getElementById('cod-value').textContent = (calData.cod || '00.00') + ' mg/l';
+                document.getElementById('bod-value').textContent = (calData.bod || '00.00') + ' mg/l';
+                document.getElementById('tss-value').textContent = (calData.tss || '00.00') + ' mg/l';
+                document.getElementById('ph-value').textContent = (calData.ph || '00.00');
+                document.getElementById('flow-value').textContent = (calData.flow_rate || '00.00') + ' L/min';
+                document.getElementById('total-flow-value').textContent = (calData.flow_total || '00.00') + ' L';
+                document.getElementById('daily-flow-value').textContent = (calData.daily_flow || '00.00') + ' L';
+                
+                document.getElementById('last-updated').textContent = 'Last updated: ' + new Date().toLocaleString() + ' (Calibration Mode)';
+                
+                // Update placeholders to show current calibration values
+                document.getElementById('cod-input').placeholder = 'Current calibration: ' + (calData.cod || '00.00') + ' mg/l';
+                document.getElementById('bod-input').placeholder = 'Current calibration: ' + (calData.bod || '00.00') + ' mg/l';
+                document.getElementById('tss-input').placeholder = 'Current calibration: ' + (calData.tss || '00.00') + ' mg/l';
+                document.getElementById('ph-input').placeholder = 'Current calibration: ' + (calData.ph || '00.00');
+                document.getElementById('flow-input').placeholder = 'Current calibration: ' + (calData.flow_rate || '00.00') + ' L/min';
+                document.getElementById('total-flow-input').placeholder = 'Current calibration: ' + (calData.flow_total || '00.00') + ' L';
+                document.getElementById('daily-flow-input').placeholder = 'Current calibration: ' + (calData.daily_flow || '00.00') + ' L';
+                
+                // Update flow calculation variables
+                currentTotalFlow = parseFloat(calData.flow_total || 0);
+                currentDailyFlow = parseFloat(calData.daily_flow || 0);
+                midnightTotalFlow = calculateMidnightTotalFlow(currentTotalFlow, currentDailyFlow);
+                updateDailyFlowCalculation();
+            } else {
+                // Fetch from external API via Django proxy using user ID 25
+                fetch(`/api/external-data/?user_id=${currentUserId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            throw new Error(data.error);
+                        }
+                        
+                        // Update dashboard with external API data
+                        document.getElementById('cod-value').textContent = (data.cod || '00.00') + ' mg/l';
+                        document.getElementById('bod-value').textContent = (data.bod || '00.00') + ' mg/l';
+                        document.getElementById('tss-value').textContent = (data.tss || '00.00') + ' mg/l';
+                        document.getElementById('ph-value').textContent = (data.ph_value || '00.00');
+                        document.getElementById('flow-value').textContent = (data.flow_rate || '00.00') + ' L/min';
+                        
+                        // Use flow_total for total flow display
+                        const totalFlowValue = data.flow_total || '00.00';
+                        document.getElementById('total-flow-value').textContent = totalFlowValue + ' L';
+                        
+                        // Use daily_flow if available, otherwise fall back to flow_total
+                        const dailyFlowValue = data.daily_flow || data.flow_total || '00.00';
+                        document.getElementById('daily-flow-value').textContent = dailyFlowValue + ' L';
+                        
+                        // Format the created_date if available
+                        let lastUpdated = 'Last updated: ' + new Date().toLocaleString();
+                        if (data.created_date) {
+                            const apiDate = new Date(data.created_date);
+                            lastUpdated = 'Last updated: ' + apiDate.toLocaleString() + ' (from API)';
+                        }
+                        document.getElementById('last-updated').textContent = lastUpdated;
+
+                        // Update placeholders with actual fetched values from external API
+                        document.getElementById('cod-input').placeholder = 'Last fetched: ' + (data.cod || '00.00') + ' mg/l';
+                        document.getElementById('bod-input').placeholder = 'Last fetched: ' + (data.bod || '00.00') + ' mg/l';
+                        document.getElementById('tss-input').placeholder = 'Last fetched: ' + (data.tss || '00.00') + ' mg/l';
+                        document.getElementById('ph-input').placeholder = 'Last fetched: ' + (data.ph_value || '00.00');
+                        document.getElementById('flow-input').placeholder = 'Last fetched: ' + (data.flow_rate || '00.00') + ' L/min';
+                        document.getElementById('total-flow-input').placeholder = 'Last fetched: ' + (totalFlowValue) + ' L';
+                        document.getElementById('daily-flow-input').placeholder = 'Last fetched: ' + (dailyFlowValue) + ' L';
+                        
+                        // Update flow calculation variables
+                        currentTotalFlow = parseFloat(totalFlowValue || 0);
+                        currentDailyFlow = parseFloat(dailyFlowValue || 0);
+                        midnightTotalFlow = calculateMidnightTotalFlow(currentTotalFlow, currentDailyFlow);
+                        updateDailyFlowCalculation();
+                    })
+                    .catch(error => {
+                        console.error('Error fetching external API data via proxy:', error);
+                        // Show fallback values
+                        document.getElementById('last-updated').textContent = 'Error fetching data - using fallback';
+                        document.getElementById('cod-input').placeholder = 'Last fetched: 00.00 mg/l';
+                        document.getElementById('bod-input').placeholder = 'Last fetched: 00.00 mg/l';
+                        document.getElementById('tss-input').placeholder = 'Last fetched: 00.00 mg/l';
+                        document.getElementById('ph-input').placeholder = 'Last fetched: 00.00';
+                        document.getElementById('flow-input').placeholder = 'Last fetched: 00.00 L/min';
+                        document.getElementById('total-flow-input').placeholder = 'Last fetched: 00.00 L';
+                        document.getElementById('daily-flow-input').placeholder = 'Last fetched: 00.00 L';
+                    });
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching calibration status:', error);
+            document.getElementById('last-updated').textContent = 'Error fetching calibration status';
+        });
+}
+
+
+        // Update calibration status display
+        function checkCalibrationStatus() {
+            fetch('/calibration-status/')
+                .then(response => response.json())
+                .then(data => {
+                    const statusDiv = document.getElementById('calibration-status');
+                    if (data.calibration_active) {
+                        statusDiv.textContent = 'Calibration Mode Active';
+                        statusDiv.className = 'status-calibration';
+                        isCalibrationActive = true;
+                    } else {
+                        statusDiv.textContent = 'Normal Mode';
+                        statusDiv.className = 'status-normal';
+                        isCalibrationActive = false;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking calibration status:', error);
+                });
+        }
+
+        // Submit calibration data with daily flow logic
+// Updated JavaScript functions for the HTML file
+
+// Submit calibration data with merge functionality
+function submitCalibration() {
+    if (isSubmitting) return;
+    
+    isSubmitting = true;
+    const submitButton = document.getElementById('submit-button');
+    submitButton.disabled = true;
+    submitButton.textContent = 'Submitting...';
+    
+    const form = document.getElementById('calibration-form');
+    const formData = new FormData(form);
+    const calibrationData = {};
+    
+    // Add user ID 25 to calibration data
+    calibrationData.user_id = currentUserId;
+    
+    // Validate and collect form data - only include non-empty values
+    let hasErrors = false;
+    let hasData = false;
+    
+    formData.forEach((value, key) => {
+        if (value !== '' && key !== 'csrfmiddlewaretoken' && key !== 'user_id') {
+            hasData = true;
+            const validation = validateInput(key, value);
+            if (validation !== true) {
+                showMessage(validation, 'error');
+                hasErrors = true;
+                return;
+            }
+            
+            // Special handling for daily flow
+            if (key === 'daily_flow') {
+                const desiredDailyFlow = parseFloat(value);
+                // Calculate what the total flow should be to achieve this daily flow
+                const requiredTotalFlow = midnightTotalFlow + desiredDailyFlow;
+                
+                calibrationData.daily_flow = desiredDailyFlow;
+                
+                // Only set flow_total if it's also being calibrated or if we need to calculate it
+                // In merge mode, we might not want to override existing flow_total
+                // unless it's specifically being set
+                const totalFlowInput = document.getElementById('total-flow-input').value;
+                if (totalFlowInput === '' || totalFlowInput === null) {
+                    // Only auto-calculate total flow if user didn't specify it
+                    calibrationData.flow_total = requiredTotalFlow;
+                }
+                
+                console.log(`Daily flow calibration: midnight=${midnightTotalFlow}, desired_daily=${desiredDailyFlow}, calculated_total=${requiredTotalFlow}`);
+            } else {
+                calibrationData[key] = parseFloat(value) || null;
+            }
+        }
+    });
+    
+    // Debug: Log what we're about to send
+    console.log('Calibration data to send (only changed values):', calibrationData);
+    
+    if (hasErrors) {
+        isSubmitting = false;
+        submitButton.disabled = false;
+        submitButton.textContent = 'Submit Calibration';
+        return;
+    }
+    
+    if (!hasData) {
+        showMessage('Please enter at least one calibration value', 'error');
+        isSubmitting = false;
+        submitButton.disabled = false;
+        submitButton.textContent = 'Submit Calibration';
+        return;
+    }
+
+    // Submit to Django backend - it will merge with existing calibration data
+    fetch('/submit-data/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken()
+        },
+        body: JSON.stringify(calibrationData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Response from server:', data); // Debug log
+        if (data.success) {
+            showMessage(`Calibration data updated successfully for User 25! Values merged with existing calibration.`, 'success');
+            
+            // Clear only the fields that were submitted, not the entire form
+            Object.keys(calibrationData).forEach(key => {
+                if (key !== 'user_id') {
+                    const inputElement = document.querySelector(`[name="${key}"]`);
+                    if (inputElement) {
+                        inputElement.value = '';
+                    }
+                }
+            });
+            
+            checkCalibrationStatus();
+            // Update dashboard immediately with new merged calibrated values
+            setTimeout(fetchData, 500);
+        } else {
+            showMessage(`Error: ${data.error}`, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error submitting calibration:', error);
+        showMessage('Error submitting calibration data', 'error');
+    })
+    .finally(() => {
+        isSubmitting = false;
+        submitButton.disabled = false;
+        submitButton.textContent = 'Submit Calibration';
+    });
+}
+        // Reset calibration
+        function resetCalibration() {
+            if (isSubmitting) return;
+            
+            fetch('/reset-calibration/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken()
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                showMessage(data.message, data.status === 'success' ? 'success' : 'error');
+                if (data.status === 'success') {
+                    document.getElementById('calibration-form').reset();
+                    document.getElementById('hidden-user-id').value = '25'; // Reset hidden field
+                    isCalibrationActive = false;
+                    
+                    // Force immediate fetch of fresh data from external API for user 25
+                    fetch(`/api/external-data/?user_id=${currentUserId}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.error) {
+                                throw new Error(data.error);
+                            }
+                            
+                            // Update dashboard with fresh external API data
+                            document.getElementById('cod-value').textContent = (data.cod || '00.00') + ' mg/l';
+                            document.getElementById('bod-value').textContent = (data.bod || '00.00') + ' mg/l';
+                            document.getElementById('tss-value').textContent = (data.tss || '00.00') + ' mg/l';
+                            document.getElementById('ph-value').textContent = (data.ph_value || '00.00');
+                            document.getElementById('flow-value').textContent = (data.flow_rate || '00.00') + ' L/min';
+                            
+                            // Use flow_total for total flow display
+                            const totalFlowValue = data.flow_total || '00.00';
+                            document.getElementById('total-flow-value').textContent = totalFlowValue + ' L';
+                            
+                            // Use daily_flow if available, otherwise fall back to flow_total
+                            const dailyFlowValue = data.daily_flow || data.flow_total || '00.00';
+                            document.getElementById('daily-flow-value').textContent = dailyFlowValue + ' L';
+                            
+                            // Format the created_date if available
+                            let lastUpdated = 'Last updated: ' + new Date().toLocaleString();
+                            if (data.created_date) {
+                                const apiDate = new Date(data.created_date);
+                                lastUpdated = 'Last updated: ' + apiDate.toLocaleString() + ' (from API)';
+                            }
+                            document.getElementById('last-updated').textContent = lastUpdated;
+
+                            // Update placeholders with fresh external API values
+                            document.getElementById('cod-input').placeholder = 'Last fetched: ' + (data.cod || '00.00') + ' mg/l';
+                            document.getElementById('bod-input').placeholder = 'Last fetched: ' + (data.bod || '00.00') + ' mg/l';
+                            document.getElementById('tss-input').placeholder = 'Last fetched: ' + (data.tss || '00.00') + ' mg/l';
+                            document.getElementById('ph-input').placeholder = 'Last fetched: ' + (data.ph_value || '00.00');
+                            document.getElementById('flow-input').placeholder = 'Last fetched: ' + (data.flow_rate || '00.00') + ' L/min';
+                            document.getElementById('total-flow-input').placeholder = 'Last fetched: ' + (totalFlowValue) + ' L';
+                            document.getElementById('daily-flow-input').placeholder = 'Last fetched: ' + (dailyFlowValue) + ' L';
+                            
+                            // Update flow calculation variables
+                            currentTotalFlow = parseFloat(totalFlowValue || 0);
+                            currentDailyFlow = parseFloat(dailyFlowValue || 0);
+                            midnightTotalFlow = calculateMidnightTotalFlow(currentTotalFlow, currentDailyFlow);
+                            updateDailyFlowCalculation();
+                            
+                            checkCalibrationStatus();
+                        })
+                        .catch(error => {
+                            console.error('Error fetching fresh external API data via proxy after reset:', error);
+                            // Fallback
+                            fetchData();
+                            checkCalibrationStatus();
+                        });
+                }
+            })
+            .catch(error => {
+                console.error('Error resetting calibration:', error);
+                showMessage('Error resetting calibration', 'error');
+            });
+        }
+
+// Clear form function - now only clears the form, doesn't affect calibration state
+function clearForm() {
+    document.getElementById('calibration-form').reset();
+    // Reset the hidden user ID field to 25
+    document.getElementById('hidden-user-id').value = '25';
+    showMessage('Form cleared (calibration values unchanged)', 'success');
+}
+
+        // Event listeners
+        document.getElementById('calibration-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            submitCalibration();
+        });
+
+        document.getElementById('clear-button').addEventListener('click', clearForm);
+        document.getElementById('reset-button').addEventListener('click', resetCalibration);
+
+        // Update daily flow calculation when user types in daily flow input
+        document.getElementById('daily-flow-input').addEventListener('input', function(e) {
+            const desiredDaily = parseFloat(e.target.value);
+            if (!isNaN(desiredDaily)) {
+                const requiredTotal = midnightTotalFlow + desiredDaily;
+                document.getElementById('daily-calculation').textContent = 
+                    `To get daily ${desiredDaily}L: Total should be ${requiredTotal.toFixed(2)}L (${midnightTotalFlow} + ${desiredDaily})`;
+            } else {
+                updateDailyFlowCalculation();
+            }
+        });
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchData();
+            checkCalibrationStatus();
+        });
+
+        // Set 5-second intervals
+        setInterval(() => {
+            if (!isSubmitting) {
+                fetchData();
+                checkCalibrationStatus();
+            }
+        }, 5000);
+
+        // Handle page visibility changes
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && !isSubmitting) {
+                fetchData();
+                checkCalibrationStatus();
+            }
+        });
+    </script>
+</body>
+</html>
