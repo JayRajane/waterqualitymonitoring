@@ -1,0 +1,10 @@
+mysql -u blissadmin -pBliss@Jarvis20
+mysql  -P 3308 -u blissadmin -pBliss@Jarvis20
+mysql -h mysql -P 3308 -u blissadmin -pBliss@Jarvis20
+mysql -h 127.0.0.1 -P 3308 -u blissadmin -pBliss@Jarvis20
+mysql -h 172.17.0.1 -P 3308 -u blissadmin -pBliss@Jarvis20
+
+ip addr show docker0
+CREATE USER 'blissadmin'@'%' IDENTIFIED BY 'Bliss@Jarvis20';
+GRANT ALL PRIVILEGES ON *.* TO 'blissadmin'@'%' WITH GRANT OPTION;
+FLUSH PRIVILEGES;

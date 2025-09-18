@@ -1,0 +1,20 @@
+# Dockerfile
+FROM python:3.10-slim
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# Create app directory
+WORKDIR /code
+
+# Install dependencies
+COPY requirements.txt .
+RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
+
+# Copy project files
+COPY . .
+
+# Run migrations and start server
+# CMD ["sh", "-c", "python manage.py migrate && python manage.py runserver 0.0.0.0:8001"]
+CMD ["sh", "-c", "python manage.py migrate && gunicorn water_monitoring_system.wsgi:application --bind 0.0.0.0:8001"]

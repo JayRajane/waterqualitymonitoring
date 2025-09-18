@@ -12,6 +12,9 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 import os
 from pathlib import Path
 
+import pymysql  
+pymysql.version_info = (1, 4, 3, "final", 0)
+pymysql.install_as_MySQLdb()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -32,7 +35,8 @@ SECRET_KEY = 'django-insecure-your-secret-key-here'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['10.138.122.147','localhost','127.0.0.1']
+ALLOWED_HOSTS = ['*']
+
 
 # Application definition
 INSTALLED_APPS = [
@@ -63,8 +67,12 @@ MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
 ]
 
-SESSION_COOKIE_SECURE = False  # Set to True only if using HTTPS
-CSRF_COOKIE_SECURE = False  # Set to True only if using HTTPS
+CSRF_TRUSTED_ORIGINS = [
+    'https://erp.impulseengineers.com',
+]
+
+SESSION_COOKIE_SECURE = True  # Set to True only if using HTTPS
+CSRF_COOKIE_SECURE = True  # Set to True only if using HTTPS
 
 # Set to None to prevent redirects to login page for unauthenticated users
 # (Overrides any conflicting settings below)
@@ -109,11 +117,11 @@ WSGI_APPLICATION = 'water_monitoring_system.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'etp',
-        'USER': 'root',
-        'PASSWORD': 'admin',
-        'HOST': 'localhost',  # or the hostname where your MySQL server is running
-        'PORT': '3306',      # or the port on which your MySQL server is listening
+        'NAME': 'bliss',
+        'USER': 'blissadmin',
+        'PASSWORD': 'Bliss@Jarvis20',
+        'HOST': '172.17.0.1',
+        'PORT': '3306',
     }
 }
 
